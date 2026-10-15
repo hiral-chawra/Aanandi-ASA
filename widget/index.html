@@ -1,0 +1,1087 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AI Integration Agency - Aanandi TechnoSoft</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #DBD3FF;
+      --black:     #000000;
+      --purple:    #6904F2;
+      --purple-lt: #8B2FF8;
+      --white:     #ffffff;
+      --gray:      #f4f2ff;
+      --text-muted:#555;
+      --font-body: 'IBM Plex Sans', sans-serif;
+      --font-head: 'Instrument Sans', sans-serif;
+      --max-w:     1280px;
+    }
+
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: var(--font-body);
+      background: var(--bg);
+      color: var(--black);
+      overflow-x: hidden;
+    }
+
+    a { color: inherit; text-decoration: none; }
+    img { max-width: 100%; display: block; }
+
+    /* ── NAV ────────────────────────────────────────────── */
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      background: rgba(219,211,255,0.85);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(105,4,242,0.12);
+      padding: 0 40px;
+    }
+    .nav-inner {
+      max-width: var(--max-w);
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 72px;
+      gap: 32px;
+    }
+    .nav-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-family: var(--font-head);
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -0.4px;
+    }
+    .nav-logo-icon {
+      width: 38px;
+      height: 38px;
+    }
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 32px;
+      list-style: none;
+      font-size: 14px;
+      font-weight: 500;
+    }
+    .nav-links a:hover { color: var(--purple); }
+    .nav-cta {
+      background: var(--black);
+      color: var(--white);
+      padding: 10px 22px;
+      border-radius: 60px;
+      font-size: 14px;
+      font-weight: 600;
+      transition: background 0.2s;
+      white-space: nowrap;
+    }
+    .nav-cta:hover { background: var(--purple); }
+
+    /* ── HERO ───────────────────────────────────────────── */
+    .hero {
+      max-width: var(--max-w);
+      margin: 0 auto;
+      padding: 100px 40px 80px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 64px;
+      align-items: center;
+    }
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(105,4,242,0.1);
+      border: 1px solid rgba(105,4,242,0.25);
+      border-radius: 100px;
+      padding: 6px 14px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--purple);
+      margin-bottom: 24px;
+      letter-spacing: 0.4px;
+      text-transform: uppercase;
+    }
+    .hero-badge::before { content: "●"; font-size: 8px; }
+    .hero h1 {
+      font-family: var(--font-head);
+      font-size: clamp(36px, 4.5vw, 58px);
+      font-weight: 700;
+      line-height: 1.12;
+      letter-spacing: -1.5px;
+      margin-bottom: 22px;
+    }
+    .hero h1 em {
+      font-style: normal;
+      color: var(--purple);
+    }
+    .hero-sub {
+      font-size: 17px;
+      line-height: 1.7;
+      color: #333;
+      margin-bottom: 36px;
+      max-width: 480px;
+    }
+    .hero-actions {
+      display: flex;
+      gap: 14px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .btn-primary {
+      background: var(--black);
+      color: var(--white);
+      padding: 14px 28px;
+      border-radius: 60px;
+      font-size: 15px;
+      font-weight: 600;
+      transition: background 0.2s, transform 0.2s;
+    }
+    .btn-primary:hover { background: var(--purple); transform: translateY(-1px); }
+    .btn-ghost {
+      border: 1.5px solid var(--black);
+      color: var(--black);
+      padding: 13px 28px;
+      border-radius: 60px;
+      font-size: 15px;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+    .btn-ghost:hover { background: var(--black); color: var(--white); }
+
+    /* Hero right — workflow visual */
+    .hero-visual {
+      background: var(--black);
+      border-radius: 24px;
+      padding: 32px;
+      color: var(--white);
+      position: relative;
+      overflow: hidden;
+      min-height: 360px;
+    }
+    .hero-visual::before {
+      content: '';
+      position: absolute;
+      top: -60px; right: -60px;
+      width: 200px; height: 200px;
+      background: radial-gradient(circle, rgba(105,4,242,0.6) 0%, transparent 70%);
+      border-radius: 50%;
+    }
+    .visual-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.45);
+      margin-bottom: 20px;
+    }
+    .workflow-steps {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .w-step {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 14px;
+      padding: 14px 18px;
+      font-size: 14px;
+      font-weight: 500;
+    }
+    .w-step-icon {
+      width: 36px; height: 36px;
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+    .w-step-icon.purple { background: rgba(105,4,242,0.4); }
+    .w-step-icon.green  { background: rgba(0,200,100,0.3); }
+    .w-step-icon.blue   { background: rgba(50,120,255,0.3); }
+    .w-step-icon.gold   { background: rgba(250,216,0,0.3); }
+    .w-step-meta { margin-left: auto; font-size: 12px; color: rgba(255,255,255,0.45); }
+    .hero-stat-row {
+      display: flex;
+      gap: 20px;
+      margin-top: 24px;
+    }
+    .hero-stat {
+      flex: 1;
+      background: rgba(105,4,242,0.25);
+      border: 1px solid rgba(105,4,242,0.4);
+      border-radius: 14px;
+      padding: 14px;
+      text-align: center;
+    }
+    .hero-stat-num { font-size: 22px; font-weight: 700; color: #fff; }
+    .hero-stat-lbl { font-size: 11px; color: rgba(255,255,255,0.55); margin-top: 2px; }
+
+    /* ── LOGOS / CLIENTS ─────────────────────────────────── */
+    .clients {
+      border-top: 1px solid rgba(0,0,0,0.08);
+      border-bottom: 1px solid rgba(0,0,0,0.08);
+      padding: 28px 40px;
+      background: rgba(255,255,255,0.3);
+    }
+    .clients-inner {
+      max-width: var(--max-w);
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      gap: 48px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .client-label { font-size: 13px; color: var(--text-muted); font-weight: 500; white-space: nowrap; }
+    .client-logos { display: flex; gap: 40px; align-items: center; flex-wrap: wrap; }
+    .client-logo {
+      font-family: var(--font-head);
+      font-size: 15px;
+      font-weight: 700;
+      color: rgba(0,0,0,0.35);
+      letter-spacing: -0.3px;
+    }
+
+    /* ── SERVICES ────────────────────────────────────────── */
+    .section {
+      max-width: var(--max-w);
+      margin: 0 auto;
+      padding: 80px 40px;
+    }
+    .section-tag {
+      display: inline-block;
+      background: rgba(105,4,242,0.1);
+      color: var(--purple);
+      border: 1px solid rgba(105,4,242,0.2);
+      border-radius: 100px;
+      padding: 5px 14px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+    .section-title {
+      font-family: var(--font-head);
+      font-size: clamp(28px, 3vw, 42px);
+      font-weight: 700;
+      letter-spacing: -1px;
+      line-height: 1.2;
+      margin-bottom: 14px;
+    }
+    .section-sub {
+      font-size: 16px;
+      color: #444;
+      line-height: 1.7;
+      max-width: 560px;
+      margin-bottom: 56px;
+    }
+    .services-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+    }
+    .service-card {
+      background: var(--black);
+      color: var(--white);
+      border-radius: 20px;
+      padding: 28px;
+      transition: transform 0.25s;
+    }
+    .service-card:hover { transform: translateY(-4px); }
+    .service-icon {
+      width: 48px; height: 48px;
+      border-radius: 14px;
+      background: rgba(105,4,242,0.35);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px;
+      margin-bottom: 18px;
+    }
+    .service-card h3 { font-size: 17px; font-weight: 700; margin-bottom: 10px; }
+    .service-card p  { font-size: 14px; line-height: 1.65; color: rgba(255,255,255,0.6); }
+    .service-card-light {
+      background: rgba(255,255,255,0.55);
+      color: var(--black);
+      border: 1px solid rgba(0,0,0,0.08);
+    }
+    .service-card-light .service-icon { background: rgba(105,4,242,0.12); }
+    .service-card-light p { color: #555; }
+    .service-card-purple {
+      background: var(--purple);
+      color: var(--white);
+    }
+    .service-card-purple .service-icon { background: rgba(255,255,255,0.2); }
+    .service-card-purple p { color: rgba(255,255,255,0.8); }
+
+    /* ── HOW IT WORKS ────────────────────────────────────── */
+    .how-bg {
+      background: var(--black);
+      margin: 0;
+    }
+    .how-inner {
+      max-width: var(--max-w);
+      margin: 0 auto;
+      padding: 80px 40px;
+      color: var(--white);
+    }
+    .how-inner .section-tag { background: rgba(105,4,242,0.3); border-color: rgba(105,4,242,0.5); }
+    .how-inner .section-sub { color: rgba(255,255,255,0.6); }
+    .steps-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 24px;
+      margin-top: 0;
+    }
+    .step-card {
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 20px;
+      padding: 28px 24px;
+      position: relative;
+    }
+    .step-num {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      color: var(--purple);
+      margin-bottom: 16px;
+    }
+    .step-card h3 { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+    .step-card p  { font-size: 13px; line-height: 1.6; color: rgba(255,255,255,0.55); }
+
+    /* ── AI VOICE ────────────────────────────────────────── */
+    .voice-section {
+      max-width: var(--max-w);
+      margin: 0 auto;
+      padding: 80px 40px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 64px;
+      align-items: center;
+    }
+    .voice-demo {
+      background: var(--black);
+      border-radius: 24px;
+      padding: 32px;
+      color: var(--white);
+      position: relative;
+      overflow: hidden;
+    }
+    .voice-demo::after {
+      content: '';
+      position: absolute;
+      bottom: -40px; left: -40px;
+      width: 180px; height: 180px;
+      background: radial-gradient(circle, rgba(105,4,242,0.5) 0%, transparent 70%);
+      border-radius: 50%;
+    }
+    .voice-bars {
+      display: flex;
+      align-items: flex-end;
+      gap: 5px;
+      height: 60px;
+      margin: 24px 0;
+    }
+    .voice-bar {
+      flex: 1;
+      background: var(--purple);
+      border-radius: 4px;
+      animation: bar-anim 1.2s ease-in-out infinite alternate;
+    }
+    .voice-bar:nth-child(2n) { background: rgba(105,4,242,0.5); animation-delay: 0.15s; }
+    .voice-bar:nth-child(3n) { animation-delay: 0.3s; }
+    @keyframes bar-anim {
+      from { height: 12px; }
+      to   { height: 100%; }
+    }
+    .voice-transcript {
+      background: rgba(255,255,255,0.07);
+      border-radius: 12px;
+      padding: 14px 16px;
+      font-size: 13px;
+      line-height: 1.6;
+      color: rgba(255,255,255,0.8);
+      margin-top: 16px;
+    }
+    .transcript-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--purple);
+      margin-bottom: 6px;
+    }
+
+    /* ── INTEGRATIONS ────────────────────────────────────── */
+    .integrations-bg {
+      background: rgba(255,255,255,0.35);
+      border-top: 1px solid rgba(0,0,0,0.07);
+      border-bottom: 1px solid rgba(0,0,0,0.07);
+    }
+    .integrations-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 16px;
+    }
+    .integration-pill {
+      background: var(--white);
+      border: 1px solid rgba(0,0,0,0.08);
+      border-radius: 14px;
+      padding: 18px 12px;
+      text-align: center;
+      font-size: 13px;
+      font-weight: 600;
+      transition: all 0.2s;
+      cursor: default;
+    }
+    .integration-pill:hover {
+      border-color: var(--purple);
+      background: rgba(105,4,242,0.04);
+    }
+    .integration-pill .i-icon { font-size: 22px; margin-bottom: 6px; display: block; }
+
+    /* ── TESTIMONIALS ───────────────────────────────────── */
+    .testimonials-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+    }
+    .testi-card {
+      background: var(--white);
+      border-radius: 20px;
+      padding: 28px;
+      border: 1px solid rgba(0,0,0,0.07);
+    }
+    .testi-stars { color: #FAD800; font-size: 15px; margin-bottom: 14px; }
+    .testi-text { font-size: 14px; line-height: 1.7; color: #333; margin-bottom: 20px; }
+    .testi-author { display: flex; align-items: center; gap: 12px; }
+    .testi-avatar {
+      width: 42px; height: 42px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--purple), #b066ff);
+      display: flex; align-items: center; justify-content: center;
+      color: var(--white); font-weight: 700; font-size: 16px;
+      flex-shrink: 0;
+    }
+    .testi-name { font-size: 14px; font-weight: 700; }
+    .testi-role { font-size: 12px; color: var(--text-muted); }
+
+    /* ── CTA BANNER ──────────────────────────────────────── */
+    .cta-banner {
+      background: var(--black);
+      border-radius: 28px;
+      padding: 64px 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 40px;
+      position: relative;
+      overflow: hidden;
+    }
+    .cta-banner::before {
+      content: '';
+      position: absolute;
+      top: -80px; right: -80px;
+      width: 300px; height: 300px;
+      background: radial-gradient(circle, rgba(105,4,242,0.5) 0%, transparent 70%);
+      border-radius: 50%;
+    }
+    .cta-banner h2 {
+      font-family: var(--font-head);
+      font-size: clamp(24px, 3vw, 38px);
+      font-weight: 700;
+      color: var(--white);
+      letter-spacing: -0.8px;
+      position: relative;
+    }
+    .cta-banner p {
+      font-size: 16px;
+      color: rgba(255,255,255,0.6);
+      margin-top: 10px;
+      max-width: 480px;
+    }
+    .cta-actions { display: flex; gap: 14px; flex-shrink: 0; }
+    .btn-white {
+      background: var(--white);
+      color: var(--black);
+      padding: 14px 28px;
+      border-radius: 60px;
+      font-size: 15px;
+      font-weight: 700;
+      white-space: nowrap;
+      transition: all 0.2s;
+    }
+    .btn-white:hover { background: var(--bg); }
+    .btn-outline-white {
+      border: 1.5px solid rgba(255,255,255,0.35);
+      color: var(--white);
+      padding: 14px 28px;
+      border-radius: 60px;
+      font-size: 15px;
+      font-weight: 600;
+      white-space: nowrap;
+      transition: all 0.2s;
+    }
+    .btn-outline-white:hover { border-color: white; background: rgba(255,255,255,0.08); }
+
+    /* ── CONTACT FORM ───────────────────────────────────── */
+    .contact-section {
+      max-width: 700px;
+      margin: 0 auto;
+      padding: 80px 40px;
+      text-align: center;
+    }
+    .contact-form {
+      background: var(--white);
+      border-radius: 24px;
+      padding: 40px;
+      text-align: left;
+      margin-top: 40px;
+      box-shadow: 0 4px 40px rgba(0,0,0,0.07);
+    }
+    .form-group { margin-bottom: 20px; }
+    .form-label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 7px; }
+    .form-input {
+      width: 100%;
+      padding: 12px 16px;
+      border: 1.5px solid rgba(0,0,0,0.12);
+      border-radius: 10px;
+      font-family: var(--font-body);
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .form-input:focus { border-color: var(--purple); }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .form-submit {
+      width: 100%;
+      background: var(--black);
+      color: var(--white);
+      border: none;
+      padding: 14px;
+      border-radius: 60px;
+      font-family: var(--font-body);
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 8px;
+      transition: background 0.2s;
+    }
+    .form-submit:hover { background: var(--purple); }
+
+    /* ── FOOTER ──────────────────────────────────────────── */
+    footer {
+      background: var(--black);
+      color: rgba(255,255,255,0.65);
+      padding: 60px 40px 32px;
+    }
+    .footer-inner {
+      max-width: var(--max-w);
+      margin: 0 auto;
+    }
+    .footer-top {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr 1fr;
+      gap: 48px;
+      padding-bottom: 48px;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    .footer-brand { font-size: 14px; line-height: 1.7; }
+    .footer-brand .nav-logo { color: var(--white); margin-bottom: 14px; }
+    .footer-col h4 { font-size: 13px; font-weight: 700; color: var(--white); margin-bottom: 16px; }
+    .footer-col ul { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+    .footer-col li { font-size: 13px; cursor: pointer; }
+    .footer-col li:hover { color: var(--white); }
+    .footer-bottom {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 28px;
+      font-size: 13px;
+    }
+    .social-links { display: flex; gap: 16px; }
+    .social-links a {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      border: 1px solid rgba(255,255,255,0.15);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px;
+      color: rgba(255,255,255,0.6);
+      transition: all 0.2s;
+    }
+    .social-links a:hover { border-color: var(--purple); color: var(--white); background: rgba(105,4,242,0.3); }
+
+    /* Responsive */
+    @media (max-width: 900px) {
+      .hero            { grid-template-columns: 1fr; }
+      .services-grid   { grid-template-columns: 1fr 1fr; }
+      .steps-grid      { grid-template-columns: 1fr 1fr; }
+      .integrations-grid { grid-template-columns: repeat(3, 1fr); }
+      .testimonials-grid { grid-template-columns: 1fr; }
+      .voice-section   { grid-template-columns: 1fr; }
+      .cta-banner      { flex-direction: column; text-align: center; }
+      .footer-top      { grid-template-columns: 1fr 1fr; gap: 32px; }
+    }
+    @media (max-width: 600px) {
+      nav { padding: 0 20px; }
+      .nav-links { display: none; }
+      .hero { padding: 60px 20px 48px; }
+      .section { padding: 60px 20px; }
+      .services-grid { grid-template-columns: 1fr; }
+      .steps-grid { grid-template-columns: 1fr; }
+      .integrations-grid { grid-template-columns: repeat(2, 1fr); }
+      .form-row { grid-template-columns: 1fr; }
+      .cta-banner { padding: 40px 28px; }
+      .footer-top { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ── NAVBAR ─────────────────────────────────────────── -->
+  <nav>
+    <div class="nav-inner">
+      <a href="#" class="nav-logo">
+        <!-- Aanandi Logo SVG (A + gold dot) -->
+        <svg class="nav-logo-icon" viewBox="0 0 38 38" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect width="38" height="38" rx="10" fill="#000"/>
+          <line x1="19" y1="7" x2="8"  y2="31" stroke="#283040" stroke-width="5" stroke-linecap="round"/>
+          <line x1="19" y1="7" x2="30" y2="31" stroke="#283040" stroke-width="5" stroke-linecap="round"/>
+          <line x1="19" y1="7" x2="8"  y2="31" stroke="rgba(255,255,255,0.75)" stroke-width="4" stroke-linecap="round"/>
+          <line x1="19" y1="7" x2="30" y2="31" stroke="rgba(255,255,255,0.75)" stroke-width="4" stroke-linecap="round"/>
+          <circle cx="19" cy="23" r="4.5" fill="#FAD800"/>
+        </svg>
+        Aanandi TechnoSoft
+      </a>
+
+      <ul class="nav-links">
+        <li><a href="#services">Services</a></li>
+        <li><a href="#how">How It Works</a></li>
+        <li><a href="#voice">AI Voice</a></li>
+        <li><a href="#integrations">Integrations</a></li>
+        <li><a href="#testimonials">Testimonials</a></li>
+      </ul>
+
+      <a href="#contact" class="nav-cta">Book a Free Audit →</a>
+    </div>
+  </nav>
+
+  <!-- ── HERO ───────────────────────────────────────────── -->
+  <div class="hero">
+    <div>
+      <div class="hero-badge">AI Integration Agency</div>
+      <h1>Automate Critical<br/>Workflows with <em>AI</em></h1>
+      <p class="hero-sub">
+        End-to-end automation across your entire stack. Integrate the tools you rely on.
+        Aanandi builds AI agents that handle sales, support, and operations — so you don't have to.
+      </p>
+      <div class="hero-actions">
+        <a href="#contact" class="btn-primary">Start Automating →</a>
+        <a href="#how" class="btn-ghost">See How It Works</a>
+      </div>
+    </div>
+    <div class="hero-visual">
+      <div class="visual-label">Live Workflow</div>
+      <div class="workflow-steps">
+        <div class="w-step">
+          <div class="w-step-icon purple">🤖</div>
+          <div>
+            <div style="font-weight:600;font-size:13px;">AI Sales Agent</div>
+            <div style="font-size:11px;color:rgba(255,255,255,0.45);margin-top:2px;">Qualifying leads in real-time</div>
+          </div>
+          <div class="w-step-meta">● Active</div>
+        </div>
+        <div class="w-step">
+          <div class="w-step-icon green">📅</div>
+          <div>
+            <div style="font-weight:600;font-size:13px;">Calendar Booking</div>
+            <div style="font-size:11px;color:rgba(255,255,255,0.45);margin-top:2px;">Auto-scheduled 3 demos today</div>
+          </div>
+          <div class="w-step-meta">↑ 3</div>
+        </div>
+        <div class="w-step">
+          <div class="w-step-icon blue">🔗</div>
+          <div>
+            <div style="font-weight:600;font-size:13px;">CRM Sync</div>
+            <div style="font-size:11px;color:rgba(255,255,255,0.45);margin-top:2px;">HubSpot + Zoho updated</div>
+          </div>
+          <div class="w-step-meta">✓ Done</div>
+        </div>
+        <div class="w-step">
+          <div class="w-step-icon gold">📧</div>
+          <div>
+            <div style="font-weight:600;font-size:13px;">Follow-up Email</div>
+            <div style="font-size:11px;color:rgba(255,255,255,0.45);margin-top:2px;">Personalized & sent via AI</div>
+          </div>
+          <div class="w-step-meta">● Sent</div>
+        </div>
+      </div>
+      <div class="hero-stat-row">
+        <div class="hero-stat">
+          <div class="hero-stat-num">87%</div>
+          <div class="hero-stat-lbl">Time Saved</div>
+        </div>
+        <div class="hero-stat">
+          <div class="hero-stat-num">3.2×</div>
+          <div class="hero-stat-lbl">Lead Conversion</div>
+        </div>
+        <div class="hero-stat">
+          <div class="hero-stat-num">24/7</div>
+          <div class="hero-stat-lbl">AI Available</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── CLIENTS ──────────────────────────────────────────── -->
+  <div class="clients">
+    <div class="clients-inner">
+      <span class="client-label">Trusted by teams at</span>
+      <div class="client-logos">
+        <span class="client-logo">Razorpay</span>
+        <span class="client-logo">Zoho</span>
+        <span class="client-logo">Freshworks</span>
+        <span class="client-logo">LeadSquared</span>
+        <span class="client-logo">CleverTap</span>
+        <span class="client-logo">BrowserStack</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SERVICES ─────────────────────────────────────────── -->
+  <div class="section" id="services">
+    <div class="section-tag">What We Build</div>
+    <h2 class="section-title">AI Solutions for<br/>Every Business Function</h2>
+    <p class="section-sub">From intelligent sales agents to complex workflow automation, we build AI systems tailored to your exact needs.</p>
+    <div class="services-grid">
+      <div class="service-card">
+        <div class="service-icon">🤖</div>
+        <h3>AI Sales Agents</h3>
+        <p>Autonomous agents that qualify leads, answer objections, book demos, and follow up — around the clock.</p>
+      </div>
+      <div class="service-card service-card-purple">
+        <div class="service-icon">📞</div>
+        <h3>AI Voice Calling</h3>
+        <p>Real-time voice AI powered by Whisper + Gemini + Edge TTS. Speaks naturally, listens intelligently, closes deals.</p>
+      </div>
+      <div class="service-card service-card-light">
+        <div class="service-icon">⚙️</div>
+        <h3>Workflow Automation</h3>
+        <p>Connect your entire stack — CRM, email, calendar, payments — and automate the repetitive work.</p>
+      </div>
+      <div class="service-card service-card-light">
+        <div class="service-icon">📊</div>
+        <h3>Data Intelligence</h3>
+        <p>AI-powered reporting and analytics that surface insights and drive smarter business decisions.</p>
+      </div>
+      <div class="service-card">
+        <div class="service-icon">💬</div>
+        <h3>Conversational AI</h3>
+        <p>Deploy intelligent chatbots for support, onboarding, and sales across your website, WhatsApp, and more.</p>
+      </div>
+      <div class="service-card service-card-light">
+        <div class="service-icon">🔗</div>
+        <h3>System Integrations</h3>
+        <p>Seamlessly connect Salesforce, HubSpot, Zoho, Razorpay, and 200+ tools with custom AI middleware.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── HOW IT WORKS ──────────────────────────────────────── -->
+  <div class="how-bg" id="how">
+    <div class="how-inner">
+      <div class="section-tag">Our Process</div>
+      <h2 class="section-title" style="color:#fff">From Idea to<br/>Automation in 4 Steps</h2>
+      <p class="section-sub">We move fast. Most clients go from initial call to live AI agent within 2 weeks.</p>
+      <div class="steps-grid">
+        <div class="step-card">
+          <div class="step-num">STEP 01</div>
+          <h3>Discovery Audit</h3>
+          <p>We map your current workflows, identify automation opportunities, and calculate ROI.</p>
+        </div>
+        <div class="step-card">
+          <div class="step-num">STEP 02</div>
+          <h3>Design & Architect</h3>
+          <p>Our team designs the AI agent architecture tailored to your stack, data, and goals.</p>
+        </div>
+        <div class="step-card">
+          <div class="step-num">STEP 03</div>
+          <h3>Build & Integrate</h3>
+          <p>We build, test, and deploy your AI systems — integrated with every tool you already use.</p>
+        </div>
+        <div class="step-card">
+          <div class="step-num">STEP 04</div>
+          <h3>Monitor & Optimise</h3>
+          <p>Continuous monitoring, A/B testing, and model fine-tuning to improve performance over time.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── AI VOICE SECTION ──────────────────────────────────── -->
+  <div class="voice-section" id="voice">
+    <div>
+      <div class="section-tag">AI Voice Calling</div>
+      <h2 class="section-title">Your AI Sales Rep.<br/>Available 24/7.</h2>
+      <p class="section-sub">Our voice AI understands context, handles objections, and books meetings — just like a top-performing SDR, but at scale and zero cost per call.</p>
+      <ul style="list-style:none;display:flex;flex-direction:column;gap:14px;">
+        <li style="display:flex;gap:12px;align-items:flex-start;font-size:15px;">
+          <span style="color:var(--purple);font-size:18px;margin-top:-1px;">✦</span>
+          <div><strong>Real-time STT</strong> — Whisper.cpp processing at &lt;200ms latency</div>
+        </li>
+        <li style="display:flex;gap:12px;align-items:flex-start;font-size:15px;">
+          <span style="color:var(--purple);font-size:18px;margin-top:-1px;">✦</span>
+          <div><strong>Gemini 1.5 Flash</strong> — understands product, pricing, and objections</div>
+        </li>
+        <li style="display:flex;gap:12px;align-items:flex-start;font-size:15px;">
+          <span style="color:var(--purple);font-size:18px;margin-top:-1px;">✦</span>
+          <div><strong>Edge TTS</strong> — natural voice synthesis with emotion and cadence</div>
+        </li>
+        <li style="display:flex;gap:12px;align-items:flex-start;font-size:15px;">
+          <span style="color:var(--purple);font-size:18px;margin-top:-1px;">✦</span>
+          <div><strong>CRM Integration</strong> — every call logged, transcribed, and actioned</div>
+        </li>
+      </ul>
+      <a href="#contact" class="btn-primary" style="display:inline-block;margin-top:32px;">Try Voice AI Demo →</a>
+    </div>
+    <div class="voice-demo">
+      <div class="visual-label">Live Call — AI Agent</div>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+        <div style="width:10px;height:10px;border-radius:50%;background:#22c55e;"></div>
+        <span style="font-size:13px;font-weight:600;">Aanandi AI is speaking…</span>
+        <span style="margin-left:auto;font-size:12px;color:rgba(255,255,255,0.4);">0:42</span>
+      </div>
+      <div class="voice-bars">
+        <div class="voice-bar" style="height:30%"></div>
+        <div class="voice-bar" style="height:70%"></div>
+        <div class="voice-bar" style="height:50%"></div>
+        <div class="voice-bar" style="height:90%"></div>
+        <div class="voice-bar" style="height:45%"></div>
+        <div class="voice-bar" style="height:80%"></div>
+        <div class="voice-bar" style="height:35%"></div>
+        <div class="voice-bar" style="height:65%"></div>
+        <div class="voice-bar" style="height:55%"></div>
+        <div class="voice-bar" style="height:75%"></div>
+        <div class="voice-bar" style="height:40%"></div>
+        <div class="voice-bar" style="height:85%"></div>
+        <div class="voice-bar" style="height:60%"></div>
+        <div class="voice-bar" style="height:95%"></div>
+        <div class="voice-bar" style="height:50%"></div>
+        <div class="voice-bar" style="height:70%"></div>
+      </div>
+      <div class="voice-transcript">
+        <div class="transcript-label">Transcript</div>
+        "Hi! I'm Aanandi, your AI Sales Engineer. I noticed you submitted a form about workflow automation — I'd love to walk you through exactly how we can save your team 15+ hours a week. Do you have 5 minutes right now?"
+      </div>
+      <div style="display:flex;gap:10px;margin-top:18px;">
+        <div style="flex:1;background:rgba(105,4,242,0.25);border:1px solid rgba(105,4,242,0.4);border-radius:12px;padding:12px;text-align:center;">
+          <div style="font-size:18px;font-weight:700;">0:42</div>
+          <div style="font-size:11px;color:rgba(255,255,255,0.45);margin-top:2px;">Duration</div>
+        </div>
+        <div style="flex:1;background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.3);border-radius:12px;padding:12px;text-align:center;">
+          <div style="font-size:18px;font-weight:700;">94%</div>
+          <div style="font-size:11px;color:rgba(255,255,255,0.45);margin-top:2px;">Confidence</div>
+        </div>
+        <div style="flex:1;background:rgba(250,216,0,0.1);border:1px solid rgba(250,216,0,0.3);border-radius:12px;padding:12px;text-align:center;">
+          <div style="font-size:18px;font-weight:700; color:#FAD800;">Demo</div>
+          <div style="font-size:11px;color:rgba(255,255,255,0.45);margin-top:2px;">Intent</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── INTEGRATIONS ──────────────────────────────────────── -->
+  <div class="integrations-bg" id="integrations">
+    <div class="section">
+      <div style="text-align:center;margin-bottom:48px;">
+        <div class="section-tag">Integrations</div>
+        <h2 class="section-title">Works With Your<br/>Entire Stack</h2>
+      </div>
+      <div class="integrations-grid">
+        <div class="integration-pill"><span class="i-icon">🟠</span>HubSpot</div>
+        <div class="integration-pill"><span class="i-icon">🟣</span>Zoho CRM</div>
+        <div class="integration-pill"><span class="i-icon">🔵</span>Salesforce</div>
+        <div class="integration-pill"><span class="i-icon">🟢</span>WhatsApp</div>
+        <div class="integration-pill"><span class="i-icon">📧</span>Gmail</div>
+        <div class="integration-pill"><span class="i-icon">📅</span>Cal.com</div>
+        <div class="integration-pill"><span class="i-icon">💳</span>Razorpay</div>
+        <div class="integration-pill"><span class="i-icon">🔶</span>Slack</div>
+        <div class="integration-pill"><span class="i-icon">📊</span>Sheets</div>
+        <div class="integration-pill"><span class="i-icon">🟦</span>Notion</div>
+        <div class="integration-pill"><span class="i-icon">⚡</span>n8n</div>
+        <div class="integration-pill"><span class="i-icon">🔗</span>Zapier</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── TESTIMONIALS ──────────────────────────────────────── -->
+  <div class="section" id="testimonials">
+    <div class="section-tag">Client Stories</div>
+    <h2 class="section-title">What Our Clients Say</h2>
+    <p class="section-sub" style="margin-bottom:40px;">Real results from real businesses that automated with Aanandi.</p>
+    <div class="testimonials-grid">
+      <div class="testi-card">
+        <div class="testi-stars">★★★★★</div>
+        <p class="testi-text">"Aanandi's AI agent handles 80% of our inbound leads now. We went from a 2-day response time to instant qualification. Our SDR team focuses only on warm deals."</p>
+        <div class="testi-author">
+          <div class="testi-avatar">R</div>
+          <div>
+            <div class="testi-name">Rahul Mehta</div>
+            <div class="testi-role">Head of Sales, FinTech Startup</div>
+          </div>
+        </div>
+      </div>
+      <div class="testi-card">
+        <div class="testi-stars">★★★★★</div>
+        <p class="testi-text">"The voice AI is unreal. Customers don't even realise they're speaking to an AI until we tell them. Booking rates went up 3x in the first month."</p>
+        <div class="testi-author">
+          <div class="testi-avatar">P</div>
+          <div>
+            <div class="testi-name">Priya Sharma</div>
+            <div class="testi-role">Founder, EdTech Platform</div>
+          </div>
+        </div>
+      </div>
+      <div class="testi-card">
+        <div class="testi-stars">★★★★★</div>
+        <p class="testi-text">"We automated our entire onboarding workflow — from form submission to contract signing. Saved 40+ hours a week. Absolutely game-changing."</p>
+        <div class="testi-author">
+          <div class="testi-avatar">A</div>
+          <div>
+            <div class="testi-name">Arjun Nair</div>
+            <div class="testi-role">COO, SaaS Company</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── CTA BANNER ────────────────────────────────────────── -->
+  <div class="section" style="padding-top:0">
+    <div class="cta-banner">
+      <div>
+        <h2>Ready to Automate Your<br/>Entire Sales Pipeline?</h2>
+        <p>Book a free 30-minute audit. We'll map your workflows and show you exactly what AI can automate — with real numbers.</p>
+      </div>
+      <div class="cta-actions">
+        <a href="#contact" class="btn-white">Book Free Audit →</a>
+        <a href="#voice" class="btn-outline-white">See Demo</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── CONTACT FORM ──────────────────────────────────────── -->
+  <div class="contact-section" id="contact">
+    <div class="section-tag">Get Started</div>
+    <h2 class="section-title">Let's Build Your<br/>AI Automation</h2>
+    <p style="font-size:15px;color:#555;line-height:1.7;margin-top:12px;">Fill in your details and our team will reach out within 24 hours to schedule your free audit.</p>
+    <form class="contact-form" id="main-contact-form" action="#" method="post">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label" for="cf-name">Full Name *</label>
+          <input class="form-input" type="text" id="cf-name" name="name" placeholder="Rahul Mehta" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="cf-company">Company</label>
+          <input class="form-input" type="text" id="cf-company" name="company" placeholder="Acme Inc." />
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label" for="cf-email">Work Email *</label>
+          <input class="form-input" type="email" id="cf-email" name="email" placeholder="you@company.com" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="cf-phone">Phone *</label>
+          <input class="form-input" type="tel" id="cf-phone" name="phone" placeholder="+91 98765 43210" required />
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="cf-need">What do you want to automate? *</label>
+        <textarea class="form-input" id="cf-need" name="message" rows="4" placeholder="e.g. Lead qualification, outbound calling, CRM sync…" required style="resize:vertical;"></textarea>
+      </div>
+      <button type="submit" class="form-submit">Submit — Get My Free Audit →</button>
+    </form>
+  </div>
+
+  <!-- ── FOOTER ────────────────────────────────────────────── -->
+  <footer>
+    <div class="footer-inner">
+      <div class="footer-top">
+        <div class="footer-brand">
+          <a href="#" class="nav-logo">
+            <svg width="32" height="32" viewBox="0 0 38 38" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect width="38" height="38" rx="10" fill="#1a1a2e"/>
+              <line x1="19" y1="7" x2="8"  y2="31" stroke="rgba(255,255,255,0.8)" stroke-width="4" stroke-linecap="round"/>
+              <line x1="19" y1="7" x2="30" y2="31" stroke="rgba(255,255,255,0.8)" stroke-width="4" stroke-linecap="round"/>
+              <circle cx="19" cy="23" r="4.5" fill="#FAD800"/>
+            </svg>
+            Aanandi TechnoSoft
+          </a>
+          AI Integration Agency building autonomous sales & workflow systems for ambitious businesses.
+          <div style="margin-top:16px;font-size:13px;">📞 +91 97138 46846</div>
+        </div>
+        <div class="footer-col">
+          <h4>Services</h4>
+          <ul>
+            <li>AI Sales Agents</li>
+            <li>Voice Calling AI</li>
+            <li>Workflow Automation</li>
+            <li>CRM Integration</li>
+            <li>Data Intelligence</li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Company</h4>
+          <ul>
+            <li>About Us</li>
+            <li>Case Studies</li>
+            <li>Blog</li>
+            <li>Careers</li>
+            <li>Contact</li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Legal</h4>
+          <ul>
+            <li>Privacy Policy</li>
+            <li>Terms of Service</li>
+            <li>Cookie Policy</li>
+            <li>Refund Policy</li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span>© 2026 Aanandi TechnoSoft. All rights reserved.</span>
+        <div class="social-links">
+          <a href="https://instagram.com/theaanandi" target="_blank">📷</a>
+          <a href="https://x.com/theaanandi" target="_blank">𝕏</a>
+          <a href="https://linkedin.com/company/theaanandi" target="_blank">in</a>
+          <a href="https://wa.me/919713846846" target="_blank">💬</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Widget Mount Point -->
+  <aanandi-agent
+    api-base="http://localhost:8000"
+    data-site-id="dev-harness"
+  ></aanandi-agent>
+
+  <script type="module" src="/src/index.tsx"></script>
+</body>
+</html>
