@@ -3,7 +3,7 @@ services:
     name: aanandi-sales-agent
     runtime: docker
     dockerfilePath: ./Dockerfile
-    plan: starter
+    plan: free
     region: oregon
     healthCheckPath: /health
     envVars:
