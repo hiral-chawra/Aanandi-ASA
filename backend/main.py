@@ -104,6 +104,7 @@ async def health_check():
     return {
         "status": "ok",
         "service": "Aanandi Sales API Gateway",
+        "version": "v1.1-voice-fixed",
         "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat()
     }
 
