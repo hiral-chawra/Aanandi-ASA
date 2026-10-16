@@ -64,17 +64,13 @@ def query_knowledge_base(query: str) -> str:
     """Searches product documentation, case studies, fields, and enterprise FAQs for Aanandi TechnoSoft via Atlas Vector Search."""
     try:
         from rag import vector_search_knowledge
+        from db import get_main_loop
         import asyncio
-        import concurrent.futures
 
-        try:
-            loop = asyncio.get_running_loop()
-        except RuntimeError:
-            loop = None
-
-        if loop and loop.is_running():
-            with concurrent.futures.ThreadPoolExecutor() as pool:
-                return pool.submit(asyncio.run, vector_search_knowledge(query)).result()
+        main_loop = get_main_loop()
+        if main_loop and main_loop.is_running():
+            future = asyncio.run_coroutine_threadsafe(vector_search_knowledge(query), main_loop)
+            return future.result(timeout=5)
         else:
             return asyncio.run(vector_search_knowledge(query))
     except Exception as e:

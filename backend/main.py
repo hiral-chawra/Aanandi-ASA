@@ -78,6 +78,8 @@ async def run_follow_up_worker():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    from db import set_main_loop
+    set_main_loop(asyncio.get_running_loop())
     # Initialize Beanie ODM
     await init_db()
     worker_task = asyncio.create_task(run_follow_up_worker())

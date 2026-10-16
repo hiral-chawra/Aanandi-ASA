@@ -71,13 +71,12 @@ async def run_voice_agent(transport, chat_history: list = None):
 
     # 2. Resilient Neural Voice Synthesis (Local Kokoro Engine)
     tts = KokoroTTSService(
-        voice_id="af_heart",
-        sample_rate=16000
+        settings=KokoroTTSService.Settings(voice="af_heart")
     )
     
     # Attach the Markdown text filter directly to the TTS engine
     markdown_filter = MarkdownTextFilter()
-    tts.add_text_filter(markdown_filter)
+    tts.add_text_transformer(lambda text, agg="*": markdown_filter.filter(text))
 
     # Configure VAD to detect end-of-speech faster (0.4s pause instead of ~1s)
     vad_analyzer = SileroVADAnalyzer(params=VADParams(stop_secs=0.4))

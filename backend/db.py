@@ -20,11 +20,24 @@ follow_up_queue_collection = db["follow_up_queue"]
 call_logs_collection = db["call_logs"]
 knowledge_chunks_collection = db["knowledge_chunks"]
 
+# Main event loop reference for cross-thread async queries
+_main_loop = None
+
+def set_main_loop(loop):
+    global _main_loop
+    _main_loop = loop
+
+def get_main_loop():
+    return _main_loop
+
 async def init_db():
     """Initializes Beanie ODM with all 7 document models."""
     try:
         from models import ALL_DOCUMENT_MODELS
         from beanie import init_beanie
+        # Compatibility patch: Motor 3.7+ removed append_metadata which Beanie attempts to call
+        if not hasattr(client, "append_metadata"):
+            client.append_metadata = lambda *args, **kwargs: None
         await init_beanie(database=db, document_models=ALL_DOCUMENT_MODELS)
         print("[DB SUCCESS] Beanie ODM initialized successfully.")
     except Exception as e:
