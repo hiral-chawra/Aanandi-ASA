@@ -760,7 +760,7 @@ def reasoning_node(state: AgentState):
         if user_email and user_phone:
             new_otp = str(random.randint(100000, 999999))
             print(f"\n==================================================", flush=True)
-            print(f"🔑 SECURITY OTP GENERATED FOR {user_email}: {new_otp}", flush=True)
+            print(f"[SECURITY OTP] GENERATED FOR {user_email}: {new_otp}", flush=True)
             print(f"==================================================\n", flush=True)
 
             from dispatch import send_email_dispatch

@@ -71,7 +71,7 @@ async def run_voice_agent(transport, chat_history: list = None):
 
     # 2. Resilient Neural Voice Synthesis (Local Kokoro Engine)
     tts = KokoroTTSService(
-        voice="af_heart",
+        voice_id="af_heart",
         sample_rate=16000
     )
     
