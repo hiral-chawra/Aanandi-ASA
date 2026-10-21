@@ -550,62 +550,148 @@ def reasoning_node(state: AgentState):
         }
 
     # ── 1. Check for Active OTP Verification or Escape Hatches ──────────────────
-    if pending_step == "VERIFY_OTP":
+    cleaned_digits = "".join(filter(str.isdigit, last_msg))
+
+    # Check for escape hatch requests (Resend OTP or Change Email)
+    if any(k in last_msg.lower() for k in ["resend", "resend_otp", "resend code", "didn't receive", "didnt receive"]):
+        target_mail = user_email.strip() if (user_email and "@" in user_email) else os.getenv("SMTP_EMAIL", "pyashkumar0312@gmail.com")
+        new_otp = str(random.randint(100000, 999999))
+        print(f"\n==================================================", flush=True)
+        print(f"🔑 RESENT SECURITY OTP FOR {target_mail}: {new_otp}", flush=True)
+        print(f"==================================================\n", flush=True)
+        from dispatch import send_email_dispatch
+        send_email_dispatch(
+            to_email=target_mail,
+            subject="Your Aanandi Security Verification Code (Resent)",
+            text_content=f"Hello {user_name or 'Valued Customer'},\n\nYour new 6-digit security code is: {new_otp}\nValid for 10 minutes."
+        )
+        try:
+            from db import _in_memory_otps
+            from datetime import datetime, timezone, timedelta
+            _in_memory_otps[target_mail.lower()] = {
+                "email": target_mail.lower(),
+                "otp_code": str(new_otp),
+                "otp_expires_at": datetime.now(timezone.utc) + timedelta(minutes=10),
+                "is_verified": False,
+                "updated_at": datetime.now(timezone.utc)
+            }
+        except Exception:
+            pass
+        return {
+            "messages": [AIMessage(content=f"🔄 **New verification code sent!**\n\nPlease check your inbox & spam folder (**{target_mail}**) and enter the 6-digit code below.")],
+            "user_name": user_name,
+            "user_email": target_mail,
+            "user_phone": user_phone,
+            "otp_code": new_otp,
+            "lead_stage": lead_stage,
+            "pending_step": "VERIFY_OTP",
+            "is_verified": False,
+            "photo_context": photo_ctx,
+            "tool_payload": {
+                "type": "otp_options",
+                "data": {"user_email": target_mail, "can_resend": True, "can_change_email": True}
+            }
+        }
+
+    if any(k in last_msg.lower() for k in ["change email", "change_email", "wrong email", "different email"]):
+        return {
+            "messages": [AIMessage(content="Sure! Please fill in your updated email address below to receive a new code:")],
+            "user_name": user_name,
+            "user_email": "",
+            "user_phone": user_phone,
+            "otp_code": "",
+            "lead_stage": lead_stage,
+            "pending_step": "COLLECT_EMAIL",
+            "is_verified": False,
+            "photo_context": photo_ctx,
+            "tool_payload": {
+                "type": "lead_form",
+                "data": {"title": "Update Email Address", "fields": ["email"]}
+            }
+        }
+
+    # Handle 10-digit phone number sent while waiting for OTP
+    if pending_step == "VERIFY_OTP" and len(cleaned_digits) in [10, 11, 12] and not is_user_query(last_msg):
+        target_mail = user_email.strip() if (user_email and "@" in user_email) else os.getenv("SMTP_EMAIL", "pyashkumar0312@gmail.com")
+        return {
+            "messages": [AIMessage(content=f"🔐 **We've dispatched your 6-digit verification code to {target_mail}!**\n\nPlease check your inbox and enter the 6-digit code below to complete session verification.")],
+            "user_name": user_name,
+            "user_phone": last_msg.strip(),
+            "user_email": target_mail,
+            "otp_code": otp_code,
+            "lead_stage": lead_stage,
+            "pending_step": "VERIFY_OTP",
+            "is_verified": False,
+            "photo_context": photo_ctx,
+            "tool_payload": {
+                "type": "otp_options",
+                "data": {"user_email": target_mail, "can_resend": True, "can_change_email": True}
+            }
+        }
+
+    # Check for 6-digit OTP code entry (checks whenever user submits a 6-digit number and is unverified or in VERIFY_OTP)
+    if len(cleaned_digits) == 6 and not is_user_query(last_msg) and not is_verified:
         target_mail = user_email.strip() if (user_email and "@" in user_email) else os.getenv("SMTP_EMAIL", "pyashkumar0312@gmail.com")
         
-        # Check for escape hatch requests (Resend OTP or Change Email)
-        if any(k in last_msg.lower() for k in ["resend", "resend_otp", "resend code", "didn't receive", "didnt receive"]):
-            new_otp = str(random.randint(100000, 999999))
-            print(f"\n==================================================", flush=True)
-            print(f"🔑 RESENT SECURITY OTP FOR {target_mail}: {new_otp}", flush=True)
-            print(f"==================================================\n", flush=True)
-            from dispatch import send_email_dispatch
-            send_email_dispatch(
-                to_email=target_mail,
-                subject="Your Aanandi Security Verification Code (Resent)",
-                text_content=f"Hello {user_name or 'Valued Customer'},\n\nYour new 6-digit security code is: {new_otp}\nValid for 10 minutes."
-            )
+        # Verify against active otp_code or fallback in-memory OTP storage
+        otp_matches = (cleaned_digits == otp_code) if otp_code else False
+        if not otp_matches and target_mail:
+            try:
+                from db import _in_memory_otps
+                mem = _in_memory_otps.get(target_mail.lower())
+                if mem and mem.get("otp_code") == cleaned_digits:
+                    otp_matches = True
+            except Exception:
+                pass
+
+        if otp_matches:
+            # If verified in a booking flow, immediately display call routing options!
+            if lead_stage == "BOOKING_OFFERED" or "book" in last_msg.lower():
+                return {
+                    "messages": [AIMessage(content=f"✅ **Session & Email Verified Successfully!**\n\nThank you, **{user_name or 'there'}**. How would you like to connect with our team for your session?")],
+                    "is_verified": True,
+                    "pending_step": "VERIFIED",
+                    "lead_stage": "BOOKING_OFFERED",
+                    "user_name": user_name,
+                    "user_email": target_mail,
+                    "user_phone": user_phone,
+                    "otp_code": "",
+                    "photo_context": photo_ctx,
+                    "tool_payload": {
+                        "type": "call_routing",
+                        "data": {}
+                    }
+                }
+            else:
+                return {
+                    "messages": [AIMessage(content=f"✅ **Email Verified Successfully!**\n\nWelcome aboard, **{user_name or 'there'}**! How can I help you today with custom AI agents, workflow automation, or enterprise solutions?")],
+                    "is_verified": True,
+                    "pending_step": "VERIFIED",
+                    "lead_stage": "QUALIFYING",
+                    "user_name": user_name,
+                    "user_email": target_mail,
+                    "user_phone": user_phone,
+                    "otp_code": "",
+                    "photo_context": photo_ctx,
+                    "tool_payload": {
+                        "type": "mcq",
+                        "data": {
+                            "title": "Suggested Follow-ups",
+                            "options": [
+                                "Tell me about your 9 live portfolio apps (Uclean, Jotno, etc.)",
+                                "Tell me about Custom CRM Integrations",
+                                "How do AI Voice & Support Agents work?",
+                                "Book a Discovery Call with Senior Technical Team"
+                            ]
+                        }
+                    }
+                }
+        else:
             return {
-                "messages": [AIMessage(content=f"🔄 **New verification code sent!**\n\nPlease check your inbox & spam folder (**{target_mail}**) and enter the 6-digit code below.")],
+                "messages": [AIMessage(content=f"❌ Invalid verification code. Please check your inbox (**{target_mail}**) and enter the correct 6-digit code.")],
                 "user_name": user_name,
                 "user_email": target_mail,
                 "user_phone": user_phone,
-                "otp_code": new_otp,
-                "lead_stage": lead_stage,
-                "pending_step": "VERIFY_OTP",
-                "is_verified": False,
-                "photo_context": photo_ctx,
-                "tool_payload": {
-                    "type": "otp_options",
-                    "data": {"user_email": target_mail, "can_resend": True, "can_change_email": True}
-                }
-            }
-
-        if any(k in last_msg.lower() for k in ["change email", "change_email", "wrong email", "different email"]):
-            return {
-                "messages": [AIMessage(content="Sure! Please fill in your updated email address below to receive a new code:")],
-                "user_name": user_name,
-                "user_email": "",
-                "user_phone": user_phone,
-                "lead_stage": lead_stage,
-                "pending_step": "COLLECT_EMAIL",
-                "is_verified": False,
-                "photo_context": photo_ctx,
-                "tool_payload": {
-                    "type": "lead_form",
-                    "data": {"title": "Update Email Address", "fields": ["email"]}
-                }
-            }
-
-        cleaned_digits = "".join(filter(str.isdigit, last_msg))
-
-        # Handle 10-digit phone number sent while waiting for OTP
-        if len(cleaned_digits) in [10, 11, 12] and not is_user_query(last_msg):
-            return {
-                "messages": [AIMessage(content=f"🔐 **We've dispatched your 6-digit verification code to {target_mail}!**\n\nPlease check your inbox and enter the 6-digit code below to complete session verification.")],
-                "user_name": user_name,
-                "user_phone": last_msg.strip(),
-                "user_email": target_mail,
                 "otp_code": otp_code,
                 "lead_stage": lead_stage,
                 "pending_step": "VERIFY_OTP",
@@ -616,65 +702,6 @@ def reasoning_node(state: AgentState):
                     "data": {"user_email": target_mail, "can_resend": True, "can_change_email": True}
                 }
             }
-
-        # Check for 6-digit OTP entry
-        if len(cleaned_digits) == 6 and not is_user_query(last_msg):
-            if cleaned_digits == otp_code:
-                # If verified in a booking flow, immediately display call routing options!
-                if lead_stage == "BOOKING_OFFERED" or "book" in last_msg.lower():
-                    return {
-                        "messages": [AIMessage(content=f"✅ **Session & Email Verified Successfully!**\n\nThank you, **{user_name or 'there'}**. How would you like to connect with our team for your session?")],
-                        "is_verified": True,
-                        "pending_step": "VERIFIED",
-                        "lead_stage": "BOOKING_OFFERED",
-                        "user_name": user_name,
-                        "user_email": user_email,
-                        "user_phone": user_phone,
-                        "photo_context": photo_ctx,
-                        "tool_payload": {
-                            "type": "call_routing",
-                            "data": {}
-                        }
-                    }
-                else:
-                    return {
-                        "messages": [AIMessage(content=f"✅ **Email Verified Successfully!**\n\nWelcome aboard, **{user_name or 'there'}**! How can I help you today with custom AI agents, workflow automation, or enterprise solutions?")],
-                        "is_verified": True,
-                        "pending_step": "VERIFIED",
-                        "lead_stage": "QUALIFYING",
-                        "user_name": user_name,
-                        "user_email": user_email,
-                        "user_phone": user_phone,
-                        "photo_context": photo_ctx,
-                        "tool_payload": {
-                            "type": "mcq",
-                            "data": {
-                                "title": "Suggested Follow-ups",
-                                "options": [
-                                    "Tell me about your 9 live portfolio apps (Uclean, Jotno, etc.)",
-                                    "Tell me about Custom CRM Integrations",
-                                    "How do AI Voice & Support Agents work?",
-                                    "Book a Discovery Call with Senior Technical Team"
-                                ]
-                            }
-                        }
-                    }
-            else:
-                return {
-                    "messages": [AIMessage(content=f"❌ Invalid verification code. Please check your inbox (**{target_mail}**) and enter the correct 6-digit code.")],
-                    "user_name": user_name,
-                    "user_email": target_mail,
-                    "user_phone": user_phone,
-                    "otp_code": otp_code,
-                    "lead_stage": lead_stage,
-                    "pending_step": "VERIFY_OTP",
-                    "is_verified": False,
-                    "photo_context": photo_ctx,
-                    "tool_payload": {
-                        "type": "otp_options",
-                        "data": {"user_email": target_mail, "can_resend": True, "can_change_email": True}
-                    }
-                }
 
     # ── 2. Check for Standalone Greetings (e.g. "hi", "hay", "hello", "heyy") ───
     if is_standalone_greeting(last_msg):
@@ -765,7 +792,7 @@ def reasoning_node(state: AgentState):
         details_updated = True
 
     # If contact details were provided or updated:
-    if details_updated or pending_step in ["COLLECT_NAME", "COLLECT_EMAIL", "COLLECT_PHONE"]:
+    if (details_updated or pending_step in ["COLLECT_NAME", "COLLECT_EMAIL", "COLLECT_PHONE"]) and not (len(cleaned_digits) == 6 and not is_user_query(last_msg)):
         # If we have both email and phone, proceed straight to dispatching OTP!
         if user_email and user_phone:
             new_otp = str(random.randint(100000, 999999))
@@ -779,6 +806,18 @@ def reasoning_node(state: AgentState):
                 subject="Your Aanandi Security Verification Code",
                 text_content=f"Hello {user_name or 'Valued Customer'},\n\nYour 6-digit security code is: {new_otp}\nValid for 10 minutes."
             )
+            try:
+                from db import _in_memory_otps
+                from datetime import datetime, timezone, timedelta
+                _in_memory_otps[user_email.strip().lower()] = {
+                    "email": user_email.strip().lower(),
+                    "otp_code": str(new_otp),
+                    "otp_expires_at": datetime.now(timezone.utc) + timedelta(minutes=10),
+                    "is_verified": False,
+                    "updated_at": datetime.now(timezone.utc)
+                }
+            except Exception:
+                pass
             is_mock = dispatch_res.get("mock", False)
             if is_mock:
                 msg_text = (

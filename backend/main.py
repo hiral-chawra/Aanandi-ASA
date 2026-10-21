@@ -344,7 +344,7 @@ class LeadInterceptPayload(BaseModel):
 
 @app.post("/api/v1/lead/intercept")
 async def intercept_lead(lead: LeadInterceptPayload):
-    doc = lead.model_dump()
+    doc = {k: v for k, v in lead.model_dump().items() if v is not None}
     doc["updated_at"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
     try:
         res = await leads_collection.update_one(
@@ -355,6 +355,19 @@ async def intercept_lead(lead: LeadInterceptPayload):
         lead_id = str(res.upserted_id) if res.upserted_id else lead.session_id
     except Exception:
         lead_id = lead.session_id
+
+    # Sync live LangGraph checkpointer state immediately with updated fields
+    if lead.session_id:
+        try:
+            config = {"configurable": {"thread_id": lead.session_id}}
+            agent_updates = {}
+            if lead.email: agent_updates["user_email"] = lead.email.strip().lower()
+            if lead.full_name: agent_updates["user_name"] = lead.full_name.strip()
+            if lead.phone: agent_updates["user_phone"] = lead.phone.strip()
+            if agent_updates:
+                await sales_agent.aupdate_state(config, agent_updates)
+        except Exception:
+            pass
 
     # Enqueue 90-second automated engagement task
     try:
@@ -551,29 +564,32 @@ async def chat_stream_endpoint(websocket: WebSocket, session_id: str):
                     or ""
                 )
 
-                email_val = lead_data.get("email") or current_values.get("user_email") or ""
-                name_val = lead_data.get("full_name") or current_values.get("user_name") or ""
+                # Priority: Conversation state in current_values reflects active session; lead_data in MongoDB is persistent fallback
+                email_val = current_values.get("user_email") or lead_data.get("email") or ""
+                name_val = current_values.get("user_name") or lead_data.get("full_name") or ""
                 if name_val and name_val.strip().lower() in GREETING_WORDS:
                     name_val = ""
-                phone_val = lead_data.get("phone") or current_values.get("user_phone") or ""
-                verified_raw = lead_data.get("is_verified") if lead_data.get("is_verified") is not None else current_values.get("is_verified", False)
+                phone_val = current_values.get("user_phone") or lead_data.get("phone") or ""
+                verified_raw = current_values.get("is_verified") if current_values.get("is_verified") is not None else lead_data.get("is_verified", False)
                 # Verification is strictly invalid without a verified attendee email
                 is_verified = bool(verified_raw) and bool(email_val)
-                step_val = lead_data.get("pending_step") or current_values.get("pending_step") or "COLLECT_NAME"
+                step_val = current_values.get("pending_step") or lead_data.get("pending_step") or "COLLECT_NAME"
                 if not name_val and step_val in ["COLLECT_EMAIL", "COLLECT_PHONE"]:
                     step_val = "COLLECT_NAME"
                 if not email_val and step_val == "VERIFIED":
                     step_val = "COLLECT_EMAIL" if name_val else "COLLECT_NAME"
 
+                otp_val = current_values.get("otp_code") or lead_data.get("otp_code") or ""
+
                 input_state = {
                     "messages": [HumanMessage(content=user_text)],
-                    "lead_stage": lead_data.get("pipelineStage") or current_values.get("lead_stage") or "QUALIFYING",
-                    "bant_score": lead_data.get("qualificationScore") or current_values.get("bant_score") or 3,
+                    "lead_stage": current_values.get("lead_stage") or lead_data.get("pipelineStage") or "QUALIFYING",
+                    "bant_score": current_values.get("bant_score") or lead_data.get("qualificationScore") or 3,
                     "user_email": email_val,
                     "user_name": name_val,
                     "user_phone": phone_val,
                     "is_verified": is_verified,
-                    "otp_code": lead_data.get("otp_code") or current_values.get("otp_code") or "",
+                    "otp_code": otp_val,
                     "pending_step": step_val,
                     "needs_human": False,
                     "photo_context": photo_ctx
@@ -592,14 +608,19 @@ async def chat_stream_endpoint(websocket: WebSocket, session_id: str):
                         update_fields["full_name"] = result["user_name"]
                     elif result.get("user_name") == "":
                         update_fields["full_name"] = ""
-                    if result.get("user_email"): update_fields["email"] = result["user_email"]
-                    if result.get("user_phone"): update_fields["phone"] = result["user_phone"]
+                    if "user_email" in result:
+                        update_fields["email"] = result["user_email"]
+                    if "user_phone" in result:
+                        update_fields["phone"] = result["user_phone"]
                     if result.get("is_verified") is not None:
                         res_email = result.get("user_email") or email_val
                         update_fields["is_verified"] = bool(result["is_verified"]) and bool(res_email)
-                    if result.get("otp_code"): update_fields["otp_code"] = result["otp_code"]
-                    if result.get("pending_step"): update_fields["pending_step"] = result["pending_step"]
-                    if result.get("lead_stage"): update_fields["pipelineStage"] = result["lead_stage"]
+                    if "otp_code" in result:
+                        update_fields["otp_code"] = result["otp_code"]
+                    if result.get("pending_step"):
+                        update_fields["pending_step"] = result["pending_step"]
+                    if result.get("lead_stage"):
+                        update_fields["pipelineStage"] = result["lead_stage"]
                     
                     if update_fields:
                         await leads_collection.update_one(
