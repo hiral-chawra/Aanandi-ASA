@@ -1,0 +1,61 @@
+services:
+  - type: web
+    name: aanandi-sales-agent
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    region: oregon
+    healthCheckPath: /health
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: MALLOC_ARENA_MAX
+        value: "2"
+      - key: OMP_NUM_THREADS
+        value: "1"
+      - key: MKL_NUM_THREADS
+        value: "1"
+      - key: OPENBLAS_NUM_THREADS
+        value: "1"
+      - key: NUMEXPR_NUM_THREADS
+        value: "1"
+      - key: CTRANSLATE2_MAX_COMPUTE_THREADS
+        value: "1"
+      - key: MONGODB_URI
+        sync: false
+      - key: DATABASE_NAME
+        value: aanandi_sales
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: ELEVENLABS_API_KEY
+        sync: false
+      - key: CAL_API_KEY
+        sync: false
+      - key: CAL_EVENT_TYPE_ID
+        value: "7297448"
+      - key: CAL_TIME_ZONE
+        value: Asia/Kolkata
+      - key: SMTP_EMAIL
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: SMTP_SERVER
+        value: smtp.gmail.com
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_FROM_EMAIL
+        sync: false
+      - key: BOOKING_NOTIFICATION_EMAIL
+        value: pyashff0312@gmail.com
+      - key: RECEPTIONIST_EMAIL
+        value: pyashkumar0312@gmail.com
+      - key: TECH_TEAM_EMAIL
+        value: asmiupadhyay491@gmail.com
+      - key: RAZORPAY_KEY_ID
+        sync: false
+      - key: RAZORPAY_KEY_SECRET
+        sync: false

@@ -581,7 +581,7 @@ def reasoning_node(state: AgentState):
         target_mail = user_email.strip() if (user_email and "@" in user_email) else os.getenv("SMTP_EMAIL", "pyashkumar0312@gmail.com")
         new_otp = str(random.randint(100000, 999999))
         print(f"\n==================================================", flush=True)
-        print(f"🔑 RESENT SECURITY OTP FOR {target_mail}: {new_otp}", flush=True)
+        print(f"[SECURITY OTP RESENT] FOR {target_mail}: {new_otp}", flush=True)
         print(f"==================================================\n", flush=True)
         from dispatch import send_email_dispatch
         send_email_dispatch(
