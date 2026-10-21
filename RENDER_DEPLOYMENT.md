@@ -109,10 +109,14 @@ Configure these in the Render Web Service under **Environment**:
 | `CAL_API_KEY` | No | Cal.com API key for calendar bookings | `cal_live_...` |
 | `CAL_EVENT_TYPE_ID` | No | Cal.com Event Type ID | `7297448` |
 | `CAL_TIME_ZONE` | No | Timezone for booking schedule | `Asia/Kolkata` |
-| `SMTP_EMAIL` | No | Gmail address for dispatching OTPs and lead alerts | `your_email@gmail.com` |
+| `GMAIL_CLIENT_ID` | Recommended | Google OAuth Client ID for Gmail REST API (Bypasses Render SMTP port blocking) | `xxxx.apps.googleusercontent.com` |
+| `GMAIL_CLIENT_SECRET` | Recommended | Google OAuth Client Secret | `GOCSPX-xxxx` |
+| `GMAIL_REFRESH_TOKEN` | Recommended | Google OAuth Refresh Token (permanent token) | `1//04xxxx` |
+| `GMAIL_SENDER` | No | Sender address for Gmail API (defaults to SMTP_EMAIL) | `pyashkumar0312@gmail.com` |
+| `SMTP_EMAIL` | No | Gmail address for fallback SMTP | `your_email@gmail.com` |
 | `SMTP_PASSWORD` | No | Gmail 16-character App Password | `xxxx xxxx xxxx xxxx` |
 | `SMTP_SERVER` | No | SMTP Server Host | `smtp.gmail.com` |
-| `SMTP_PORT` | No | SMTP TLS Port | `587` |
+| `SMTP_PORT` | No | SMTP TLS Port (Blocked on Render Free Tier) | `587` |
 | `SMTP_FROM_EMAIL` | No | Sender email address | `your_email@gmail.com` |
 | `BOOKING_NOTIFICATION_EMAIL`| No | Team inbox receiving confirmed bookings | `team@company.com` |
 | `RECEPTIONIST_EMAIL` | No | Receptionist email for lead inquiries | `receptionist@company.com`|
