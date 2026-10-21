@@ -16,7 +16,7 @@ load_dotenv(find_dotenv(usecwd=True))
 cal_api_key = os.getenv("CAL_API_KEY") or os.getenv("CAL_COM_API_KEY", "")
 
 # Define FSM Lead Stages & Pending Steps
-LeadStage = Literal["NEW_LEAD", "QUALIFYING", "BOOKING_OFFERED", "CALL_BOOKED", "NURTURE", "DISQUALIFIED"]
+LeadStage = Literal["NEW_LEAD", "PENDING_VERIFICATION", "QUALIFYING", "BOOKING_OFFERED", "CALL_BOOKED", "NURTURE", "DISQUALIFIED"]
 PendingStep = Literal["COLLECT_NAME", "COLLECT_EMAIL", "COLLECT_PHONE", "VERIFY_OTP", "VERIFIED"]
 
 class AgentState(TypedDict):
@@ -32,6 +32,7 @@ class AgentState(TypedDict):
     tool_payload: dict | None
     needs_human: bool
     photo_context: str
+    unverified_questions_count: int
 
 # Comprehensive Knowledge Base Data (Aanandi TechnoSoft Documentation & Portfolio)
 PROJECTS_AND_CASE_STUDIES = """Aanandi TechnoSoft LLP (https://aanandi.in) is an elite AI Integration and Workflow Automation agency. With 15+ years of engineering experience, 500+ delivered platforms, and 160K+ users globally, we build high-availability Autonomous AI Agents, custom workflow automations, and enterprise software solutions:
@@ -134,7 +135,7 @@ def is_standalone_greeting(text: str) -> bool:
     return clean in GREETING_WORDS
 
 def is_user_query(text: str) -> bool:
-    """Determines whether text is a user inquiry/question rather than a name, email, or phone input."""
+    """Determines whether text is a user inquiry/question rather than a pure name, email, phone, or OTP input."""
     if not text or not text.strip():
         return False
     
@@ -145,8 +146,19 @@ def is_user_query(text: str) -> bool:
     if is_standalone_greeting(text_clean):
         return False
 
-    # Email inputs are NEVER user queries
-    if "@" in text_clean and "." in text_clean:
+    words = text_clean.split()
+
+    # Pure email inputs are NOT user queries
+    if len(words) <= 2 and "@" in text_clean and "." in text_clean:
+        return False
+
+    # Pure phone inputs are NOT user queries
+    digits_only = re.sub(r'\D', '', text_clean)
+    if len(words) <= 2 and len(digits_only) in [10, 11, 12]:
+        return False
+
+    # Pure 6-digit OTP codes are NOT user queries
+    if len(words) <= 2 and len(digits_only) == 6:
         return False
 
     if "?" in text_clean:
@@ -169,7 +181,6 @@ def is_user_query(text: str) -> bool:
     if re.search(pattern, text_lower):
         return True
 
-    words = text_lower.split()
     if len(words) > 4:
         return True
 
@@ -510,15 +521,27 @@ def reasoning_node(state: AgentState):
     user_phone = state.get("user_phone", "")
     otp_code = state.get("otp_code", "")
     photo_ctx = state.get("photo_context", "")
-    lead_stage = state.get("lead_stage") or "QUALIFYING"
+    lead_stage = state.get("lead_stage") or "PENDING_VERIFICATION"
     pending_step = state.get("pending_step") or "COLLECT_NAME"
+    unverified_questions_count = state.get("unverified_questions_count", 0)
 
-    # Integrity guard: A lead is ONLY verified if a valid email is recorded!
-    is_verified = state.get("is_verified", False) and bool(user_email)
+    # Integrity guard: A lead is ONLY verified if a valid email is recorded and is_verified is True!
+    is_verified = bool(state.get("is_verified", False)) and bool(user_email)
+    if is_verified:
+        unverified_questions_count = 0
+        if lead_stage == "PENDING_VERIFICATION":
+            lead_stage = "QUALIFYING"
+
     if not user_name and pending_step in ["COLLECT_EMAIL", "COLLECT_PHONE"]:
         pending_step = "COLLECT_NAME"
     if not user_email and pending_step == "VERIFIED":
         pending_step = "COLLECT_EMAIL" if user_name else "COLLECT_NAME"
+    if user_name and pending_step == "COLLECT_NAME":
+        pending_step = "COLLECT_EMAIL"
+    if user_email and pending_step == "COLLECT_EMAIL":
+        pending_step = "COLLECT_PHONE"
+    if user_phone and pending_step == "COLLECT_PHONE":
+        pending_step = "VERIFY_OTP"
 
     # ── 0. Payment Confirmation Success & Follow-ups (Top Priority) ──────────────
     if "payment" in last_msg.lower() and "confirmed" in last_msg.lower():
@@ -535,6 +558,7 @@ def reasoning_node(state: AgentState):
             "user_email": user_email,
             "user_phone": user_phone,
             "photo_context": photo_ctx,
+            "unverified_questions_count": 0,
             "tool_payload": {
                 "type": "mcq",
                 "data": {
@@ -587,6 +611,7 @@ def reasoning_node(state: AgentState):
             "pending_step": "VERIFY_OTP",
             "is_verified": False,
             "photo_context": photo_ctx,
+            "unverified_questions_count": unverified_questions_count,
             "tool_payload": {
                 "type": "otp_options",
                 "data": {"user_email": target_mail, "can_resend": True, "can_change_email": True}
@@ -604,6 +629,7 @@ def reasoning_node(state: AgentState):
             "pending_step": "COLLECT_EMAIL",
             "is_verified": False,
             "photo_context": photo_ctx,
+            "unverified_questions_count": unverified_questions_count,
             "tool_payload": {
                 "type": "lead_form",
                 "data": {"title": "Update Email Address", "fields": ["email"]}
@@ -623,6 +649,7 @@ def reasoning_node(state: AgentState):
             "pending_step": "VERIFY_OTP",
             "is_verified": False,
             "photo_context": photo_ctx,
+            "unverified_questions_count": unverified_questions_count,
             "tool_payload": {
                 "type": "otp_options",
                 "data": {"user_email": target_mail, "can_resend": True, "can_change_email": True}
@@ -657,6 +684,7 @@ def reasoning_node(state: AgentState):
                     "user_phone": user_phone,
                     "otp_code": "",
                     "photo_context": photo_ctx,
+                    "unverified_questions_count": 0,
                     "tool_payload": {
                         "type": "call_routing",
                         "data": {}
@@ -673,6 +701,7 @@ def reasoning_node(state: AgentState):
                     "user_phone": user_phone,
                     "otp_code": "",
                     "photo_context": photo_ctx,
+                    "unverified_questions_count": 0,
                     "tool_payload": {
                         "type": "mcq",
                         "data": {
@@ -697,6 +726,7 @@ def reasoning_node(state: AgentState):
                 "pending_step": "VERIFY_OTP",
                 "is_verified": False,
                 "photo_context": photo_ctx,
+                "unverified_questions_count": unverified_questions_count,
                 "tool_payload": {
                     "type": "otp_options",
                     "data": {"user_email": target_mail, "can_resend": True, "can_change_email": True}
@@ -708,13 +738,14 @@ def reasoning_node(state: AgentState):
         if is_verified:
             return {
                 "messages": [AIMessage(content=f"👋 Welcome back, **{user_name or 'there'}**! How can I help you today? Ask me any question or pick a topic below.")],
-                "lead_stage": lead_stage,
+                "lead_stage": lead_stage if lead_stage != "PENDING_VERIFICATION" else "QUALIFYING",
                 "pending_step": "VERIFIED",
                 "is_verified": True,
                 "user_name": user_name,
                 "user_email": user_email,
                 "user_phone": user_phone,
                 "photo_context": photo_ctx,
+                "unverified_questions_count": 0,
                 "tool_payload": {
                     "type": "mcq",
                     "data": {
@@ -739,35 +770,32 @@ def reasoning_node(state: AgentState):
                     next_step = "COLLECT_PHONE"
                     payload = {"type": "lead_form", "data": {"title": "Provide Contact Phone", "fields": ["phone"]}}
                 else:
-                    prompt_text = f"👋 Welcome back, **{user_name}**! How can I assist you with custom AI agents or workflow automation today?"
-                    next_step = pending_step
-                    payload = {"type": "mcq", "data": {"title": "Quick Questions", "options": [
-                        "Tell me about your 9 live portfolio apps (Uclean, Jotno, etc.)",
-                        "Tell me about Custom CRM Integrations",
-                        "How do AI Voice & Support Agents work?",
-                        "Book a Discovery Call with Senior Technical Team"
-                    ]}}
+                    prompt_text = f"👋 Welcome back, **{user_name}**! Please enter your 6-digit verification code below to complete session verification."
+                    next_step = "VERIFY_OTP"
+                    payload = {"type": "otp_options", "data": {"user_email": user_email, "can_resend": True, "can_change_email": True}}
                 return {
                     "messages": [AIMessage(content=prompt_text)],
-                    "lead_stage": lead_stage,
+                    "lead_stage": "PENDING_VERIFICATION",
                     "pending_step": next_step,
                     "is_verified": False,
                     "user_name": user_name,
                     "user_email": user_email,
                     "user_phone": user_phone,
                     "photo_context": photo_ctx,
+                    "unverified_questions_count": unverified_questions_count,
                     "tool_payload": payload
                 }
             else:
                 return {
                     "messages": [AIMessage(content="👋 Welcome to Aanandi TechnoSoft! I'm Aanandi, your AI Sales Engineer.\n\nMay I please have your full name to start our conversation?")],
-                    "lead_stage": lead_stage,
+                    "lead_stage": "PENDING_VERIFICATION",
                     "pending_step": "COLLECT_NAME",
                     "is_verified": False,
                     "user_name": "",
                     "user_email": user_email,
                     "user_phone": user_phone,
                     "photo_context": photo_ctx,
+                    "unverified_questions_count": unverified_questions_count,
                     "tool_payload": {
                         "type": "lead_form",
                         "data": {
@@ -791,10 +819,9 @@ def reasoning_node(state: AgentState):
         user_phone = parsed_info["phone"]
         details_updated = True
 
-    # If contact details were provided or updated:
-    if (details_updated or pending_step in ["COLLECT_NAME", "COLLECT_EMAIL", "COLLECT_PHONE"]) and not (len(cleaned_digits) == 6 and not is_user_query(last_msg)):
-        # If we have both email and phone, proceed straight to dispatching OTP!
-        if user_email and user_phone:
+    # If both email and phone are present and user is unverified, trigger OTP dispatch!
+    if user_email and user_phone and not is_verified:
+        if pending_step != "VERIFY_OTP" or details_updated:
             new_otp = str(random.randint(100000, 999999))
             print(f"\n==================================================", flush=True)
             print(f"[SECURITY OTP] GENERATED FOR {user_email}: {new_otp}", flush=True)
@@ -841,12 +868,15 @@ def reasoning_node(state: AgentState):
                 "pending_step": "VERIFY_OTP",
                 "is_verified": False,
                 "photo_context": photo_ctx,
+                "unverified_questions_count": unverified_questions_count,
                 "tool_payload": {
                     "type": "otp_options",
                     "data": {"user_email": user_email, "can_resend": True, "can_change_email": True}
                 }
             }
 
+    # If the user is submitting contact details WITHOUT asking a consultative query:
+    if not is_user_query(last_msg):
         # If email is provided but phone is missing:
         if user_email and not user_phone:
             display_name = user_name if user_name else "there"
@@ -859,6 +889,7 @@ def reasoning_node(state: AgentState):
                 "pending_step": "COLLECT_PHONE",
                 "is_verified": False,
                 "photo_context": photo_ctx,
+                "unverified_questions_count": unverified_questions_count,
                 "tool_payload": {
                     "type": "lead_form",
                     "data": {"title": "Provide Contact Phone", "fields": ["phone"]}
@@ -876,6 +907,7 @@ def reasoning_node(state: AgentState):
                 "pending_step": "COLLECT_EMAIL",
                 "is_verified": False,
                 "photo_context": photo_ctx,
+                "unverified_questions_count": unverified_questions_count,
                 "tool_payload": {
                     "type": "lead_form",
                     "data": {"title": "Submit Email Address", "fields": ["email"]}
@@ -883,7 +915,19 @@ def reasoning_node(state: AgentState):
             }
 
     # ── 4. Check for Call / Booking Request (Gated by Email Verification) ───────
-    if any(k in last_msg.lower() for k in ["book", "call", "talk", "demo", "pricing", "tier", "schedule"]):
+    lower_msg = last_msg.lower()
+    is_explicit_booking = (
+        any(b in lower_msg for b in ["book", "schedule", "reserve", "arrange"])
+        and any(c in lower_msg for c in ["call", "meeting", "appointment", "discovery", "slot", "calendar"])
+    ) or any(k in lower_msg for k in [
+        "talk to a human", "talk to human", "talk to sales", "talk to expert",
+        "talk to an expert", "speak to an expert", "speak with team", "speak to sales"
+    ]) or (
+        any(k in lower_msg for k in ["book", "schedule", "appointment"])
+        and not is_user_query(last_msg)
+    )
+
+    if is_explicit_booking:
         # If user is already verified with a verified email:
         if is_verified and user_email:
             display_name = user_name if user_name else "there"
@@ -896,6 +940,7 @@ def reasoning_node(state: AgentState):
                 "user_email": user_email,
                 "user_phone": user_phone,
                 "photo_context": photo_ctx,
+                "unverified_questions_count": 0,
                 "tool_payload": {
                     "type": "call_routing",
                     "data": {}
@@ -923,6 +968,7 @@ def reasoning_node(state: AgentState):
                 "user_phone": user_phone,
                 "is_verified": False,
                 "photo_context": photo_ctx,
+                "unverified_questions_count": unverified_questions_count,
                 "tool_payload": {
                     "type": "lead_form",
                     "data": {
@@ -932,13 +978,161 @@ def reasoning_node(state: AgentState):
                 }
             }
 
-    # ── 5. Non-blocking Product / Knowledge Base Q&A ────────────────────────────
+    # ── 5. Product / Knowledge Base Q&A & 3-Question Gating Rule ─────────────
+    # If lead is unverified, check the 3-question consultative threshold
+    if not is_verified:
+        current_q_count = unverified_questions_count + 1
+        display_name = user_name if user_name else "there"
+
+        # ── Turn 4 onwards: HARD GATED (Pauses open-ended answers) ───────────
+        if current_q_count >= 4:
+            payload = None
+            if not user_name:
+                gate_msg = (
+                    "🔒 To protect our engineering team's consultation availability and discuss your project, "
+                    "please provide your full name below to continue our consultation."
+                )
+                next_step = "COLLECT_NAME"
+                payload = {"type": "lead_form", "data": {"title": "Provide Your Name", "fields": ["name"]}}
+            elif not user_email:
+                gate_msg = (
+                    f"🔒 To protect our engineering team's consultation availability and discuss solutions for your project, "
+                    f"**{display_name}**, please provide your email address below to verify your session."
+                )
+                next_step = "COLLECT_EMAIL"
+                payload = {"type": "lead_form", "data": {"title": "Provide Email Address", "fields": ["email"]}}
+            elif not user_phone:
+                gate_msg = (
+                    f"🔒 To protect our engineering team's consultation availability and discuss solutions for your project, "
+                    f"**{display_name}**, please provide your contact phone number below to verify your session."
+                )
+                next_step = "COLLECT_PHONE"
+                payload = {"type": "lead_form", "data": {"title": "Provide Contact Phone", "fields": ["phone"]}}
+            else:
+                target_mail = user_email or "your email"
+                gate_msg = (
+                    f"🔒 To protect our engineering team's consultation availability and continue our consultation, "
+                    f"**{display_name}**, please enter the 6-digit verification code sent to **{target_mail}**."
+                )
+                next_step = "VERIFY_OTP"
+                payload = {"type": "otp_options", "data": {"user_email": target_mail, "can_resend": True, "can_change_email": True}}
+
+            return {
+                "messages": [AIMessage(content=gate_msg)],
+                "lead_stage": "PENDING_VERIFICATION",
+                "pending_step": next_step,
+                "is_verified": False,
+                "user_name": user_name,
+                "user_email": user_email,
+                "user_phone": user_phone,
+                "photo_context": photo_ctx,
+                "unverified_questions_count": current_q_count,
+                "tool_payload": payload
+            }
+
+        # ── Turns 1, 2, 3: Answer question thoroughly using Knowledge Base ────
+        kb_res = query_knowledge_base.invoke({"query": last_msg})
+        lead_ctx = {
+            "user_name": user_name,
+            "user_email": user_email,
+            "user_phone": user_phone,
+            "lead_stage": "PENDING_VERIFICATION",
+            "photo_context": photo_ctx
+        }
+        ai_answer, _ = generate_ai_answer_with_followups(
+            user_query=last_msg,
+            kb_data=kb_res,
+            chat_history=messages,
+            lead_context=lead_ctx
+        )
+
+        # ── Turn 3: Final free question + Warning Notice ─────────────────────
+        if current_q_count == 3:
+            payload = None
+            if not user_name:
+                notice = (
+                    "\n\n---\n*(Notice: 3 questions answered)* 👤 **Before we continue our consultation, "
+                    "please provide your full name below.**"
+                )
+                next_step = "COLLECT_NAME"
+                payload = {"type": "lead_form", "data": {"title": "Provide Your Name", "fields": ["name"]}}
+            elif not user_email:
+                notice = (
+                    f"\n\n---\n*(Notice: 3 questions answered)* 📧 **{display_name}, to continue our consultation, "
+                    "please provide your email address (and phone number) below so we can verify your session.**"
+                )
+                next_step = "COLLECT_EMAIL"
+                payload = {"type": "lead_form", "data": {"title": "Provide Email Address", "fields": ["email"]}}
+            elif not user_phone:
+                notice = (
+                    f"\n\n---\n*(Notice: 3 questions answered)* 📱 **{display_name}, to continue our consultation, "
+                    "please provide your contact phone number below so we can verify your session.**"
+                )
+                next_step = "COLLECT_PHONE"
+                payload = {"type": "lead_form", "data": {"title": "Provide Contact Phone", "fields": ["phone"]}}
+            else:
+                target_mail = user_email or "your email"
+                notice = (
+                    f"\n\n---\n*(Notice: 3 questions answered)* 🔐 **{display_name}, please enter the 6-digit "
+                    f"verification code sent to {target_mail} to continue our consultation.**"
+                )
+                next_step = "VERIFY_OTP"
+                payload = {"type": "otp_options", "data": {"user_email": target_mail, "can_resend": True, "can_change_email": True}}
+
+            ai_answer += notice
+            return {
+                "messages": [AIMessage(content=ai_answer)],
+                "lead_stage": "PENDING_VERIFICATION",
+                "pending_step": next_step,
+                "is_verified": False,
+                "user_name": user_name,
+                "user_email": user_email,
+                "user_phone": user_phone,
+                "photo_context": photo_ctx,
+                "unverified_questions_count": current_q_count,
+                "tool_payload": payload
+            }
+
+        # ── Turns 1 & 2: Progressive detail collection prompt ────────────────
+        payload = None
+        if not user_name:
+            ai_answer += "\n\n---\n👤 **Before we proceed further, may I know your full name?**"
+            next_step = "COLLECT_NAME"
+            payload = {"type": "lead_form", "data": {"title": "Provide Your Name", "fields": ["name"]}}
+        elif not user_email:
+            ai_answer += f"\n\n---\n📧 **To secure your session, {display_name}, what is your email address?**"
+            next_step = "COLLECT_EMAIL"
+            payload = {"type": "lead_form", "data": {"title": "Provide Email Address", "fields": ["email"]}}
+        elif not user_phone:
+            ai_answer += f"\n\n---\n📱 **{display_name}, what is your contact phone number to complete verification?**"
+            next_step = "COLLECT_PHONE"
+            payload = {"type": "lead_form", "data": {"title": "Provide Contact Phone", "fields": ["phone"]}}
+        else:
+            target_mail = user_email or "your email"
+            ai_answer += f"\n\n---\n🔐 **Please check your inbox and enter the 6-digit verification code sent to {target_mail}.**"
+            next_step = "VERIFY_OTP"
+            payload = {"type": "otp_options", "data": {"user_email": target_mail, "can_resend": True, "can_change_email": True}}
+
+        return {
+            "messages": [AIMessage(content=ai_answer)],
+            "lead_stage": "PENDING_VERIFICATION",
+            "pending_step": next_step,
+            "is_verified": False,
+            "user_name": user_name,
+            "user_email": user_email,
+            "user_phone": user_phone,
+            "photo_context": photo_ctx,
+            "unverified_questions_count": current_q_count,
+            "tool_payload": payload
+        }
+
+    # ── If already verified, full consultative flow is unlocked! ─────────────
     kb_res = query_knowledge_base.invoke({"query": last_msg})
     lead_ctx = {
         "user_name": user_name,
         "user_email": user_email,
         "user_phone": user_phone,
-        "lead_stage": lead_stage,
+        "lead_stage": lead_stage if lead_stage != "PENDING_VERIFICATION" else "QUALIFYING",
         "photo_context": photo_ctx
     }
     ai_answer, dynamic_followups = generate_ai_answer_with_followups(
@@ -948,53 +1142,16 @@ def reasoning_node(state: AgentState):
         lead_context=lead_ctx
     )
 
-    # If lead is NOT yet verified, append the next prompt in sequence and present the lead form
-    if not is_verified:
-        payload = None
-        if not user_name or pending_step == "COLLECT_NAME":
-            ai_answer += "\n\n---\n👤 **Before we proceed further, may I know your full name?**"
-            next_step = "COLLECT_NAME"
-            payload = {"type": "lead_form", "data": {"title": "Provide Your Name", "fields": ["name"]}}
-        elif not user_email or pending_step == "COLLECT_EMAIL":
-            display_name = user_name if user_name else "there"
-            ai_answer += f"\n\n---\n📧 **To secure your session, {display_name}, what is your email address?**"
-            next_step = "COLLECT_EMAIL"
-            payload = {"type": "lead_form", "data": {"title": "Provide Email Address", "fields": ["email"]}}
-        elif not user_phone or pending_step == "COLLECT_PHONE":
-            display_name = user_name if user_name else "there"
-            ai_answer += f"\n\n---\n📱 **{display_name}, what is your contact phone number to complete verification?**"
-            next_step = "COLLECT_PHONE"
-            payload = {"type": "lead_form", "data": {"title": "Provide Contact Phone", "fields": ["phone"]}}
-        elif pending_step == "VERIFY_OTP":
-            target_mail = user_email or "your email"
-            ai_answer += f"\n\n---\n🔐 **Please check your inbox and enter the 6-digit verification code sent to {target_mail}.**"
-            next_step = "VERIFY_OTP"
-            payload = {"type": "otp_options", "data": {"user_email": target_mail, "can_resend": True, "can_change_email": True}}
-        else:
-            next_step = pending_step
-
-        return {
-            "messages": [AIMessage(content=ai_answer)],
-            "lead_stage": lead_stage,
-            "pending_step": next_step,
-            "is_verified": False,
-            "user_name": user_name,
-            "user_email": user_email,
-            "user_phone": user_phone,
-            "photo_context": photo_ctx,
-            "tool_payload": payload
-        }
-
-    # If already verified, return AI answer WITH dynamically generated follow-ups mapped to the lead's query
     return {
         "messages": [AIMessage(content=ai_answer)],
-        "lead_stage": lead_stage,
+        "lead_stage": lead_stage if lead_stage != "PENDING_VERIFICATION" else "QUALIFYING",
         "pending_step": "VERIFIED",
         "is_verified": True,
         "user_name": user_name,
         "user_email": user_email,
         "user_phone": user_phone,
         "photo_context": photo_ctx,
+        "unverified_questions_count": 0,
         "tool_payload": {
             "type": "mcq",
             "data": {

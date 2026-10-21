@@ -16,14 +16,18 @@ class MessageSubdoc(BaseModel):
     status: Optional[str] = "delivered"
 
 class Lead(Document):
-    email: Indexed(EmailStr, unique=True)
+    email: Optional[str] = None
     phone: Optional[str] = None
     full_name: Optional[str] = None
     company: Optional[str] = None
     brief: Optional[str] = None
     bant_score: int = Field(default=0, ge=0, le=10)
-    stage: str = Field(default="NEW_LEAD")  # NEW_LEAD, QUALIFYING, BOOKING_OFFERED, CALL_BOOKED, NURTURE, DISQUALIFIED
+    stage: str = Field(default="PENDING_VERIFICATION")  # NEW_LEAD, PENDING_VERIFICATION, QUALIFYING, BOOKING_OFFERED, CALL_BOOKED, NURTURE, DISQUALIFIED
     is_verified: bool = False
+    has_name: bool = False
+    has_email: bool = False
+    has_phone: bool = False
+    unverified_questions_count: int = 0
     otp_code: Optional[str] = None
     otp_expires_at: Optional[datetime] = None
     session_id: Optional[str] = None
@@ -35,7 +39,7 @@ class Lead(Document):
     class Settings:
         name = "leads"
         indexes = [
-            IndexModel([("email", ASCENDING)], unique=True),
+            IndexModel([("email", ASCENDING)], unique=True, sparse=True),
             IndexModel([("session_id", ASCENDING)]),
             IndexModel([("stage", ASCENDING)]),
         ]

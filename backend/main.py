@@ -86,6 +86,12 @@ async def run_follow_up_worker():
                 user_email = payload.get("email")
                 user_name = payload.get("full_name") or "there"
 
+                # Safety: Automated email follow-ups remain blocked while is_verified: false
+                lead_doc = await leads_collection.find_one({"session_id": session_id})
+                if lead_doc and not lead_doc.get("is_verified", False):
+                    await mark_follow_up_processed(task_id, status="blocked_unverified")
+                    continue
+
                 # Check if user already engaged in active conversation
                 conv = await conversations_collection.find_one({"session_id": session_id})
                 if conv and len(conv.get("messages", [])) > 2:
@@ -346,6 +352,31 @@ class LeadInterceptPayload(BaseModel):
 async def intercept_lead(lead: LeadInterceptPayload):
     doc = {k: v for k, v in lead.model_dump().items() if v is not None}
     doc["updated_at"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+
+    # Progressive Flags
+    if lead.full_name:
+        doc["has_name"] = True
+    if lead.email:
+        doc["has_email"] = True
+    if lead.phone:
+        doc["has_phone"] = True
+
+    # Check existing lead document to preserve is_verified or other state
+    existing = None
+    try:
+        existing = await leads_collection.find_one({"session_id": lead.session_id})
+    except Exception:
+        pass
+
+    is_verified = bool(existing.get("is_verified", False)) if existing else False
+    doc["is_verified"] = is_verified
+    if is_verified:
+        doc["stage"] = existing.get("stage") or "QUALIFYING"
+        doc["pipelineStage"] = existing.get("pipelineStage") or "QUALIFYING"
+    else:
+        doc["stage"] = "PENDING_VERIFICATION"
+        doc["pipelineStage"] = "PENDING_VERIFICATION"
+
     try:
         res = await leads_collection.update_one(
             {"session_id": lead.session_id},
@@ -369,11 +400,12 @@ async def intercept_lead(lead: LeadInterceptPayload):
         except Exception:
             pass
 
-    # Enqueue 90-second automated engagement task
-    try:
-        await enqueue_follow_up(lead_id=lead_id, session_id=lead.session_id, delay_seconds=90, payload=doc)
-    except Exception as e:
-        print(f"[INTERCEPT QUEUE NOTICE] {e}")
+    # Safety: Automated email follow-ups remain blocked while is_verified: false
+    if is_verified:
+        try:
+            await enqueue_follow_up(lead_id=lead_id, session_id=lead.session_id, delay_seconds=90, payload=doc)
+        except Exception as e:
+            print(f"[INTERCEPT QUEUE NOTICE] {e}")
 
     return {"status": "success", "lead_id": lead_id}
 
@@ -580,10 +612,15 @@ async def chat_stream_endpoint(websocket: WebSocket, session_id: str):
                     step_val = "COLLECT_EMAIL" if name_val else "COLLECT_NAME"
 
                 otp_val = current_values.get("otp_code") or lead_data.get("otp_code") or ""
+                unverified_count = current_values.get("unverified_questions_count")
+                if unverified_count is None:
+                    unverified_count = lead_data.get("unverified_questions_count", 0)
+                if is_verified:
+                    unverified_count = 0
 
                 input_state = {
                     "messages": [HumanMessage(content=user_text)],
-                    "lead_stage": current_values.get("lead_stage") or lead_data.get("pipelineStage") or "QUALIFYING",
+                    "lead_stage": current_values.get("lead_stage") or lead_data.get("stage") or lead_data.get("pipelineStage") or ("QUALIFYING" if is_verified else "PENDING_VERIFICATION"),
                     "bant_score": current_values.get("bant_score") or lead_data.get("qualificationScore") or 3,
                     "user_email": email_val,
                     "user_name": name_val,
@@ -592,7 +629,8 @@ async def chat_stream_endpoint(websocket: WebSocket, session_id: str):
                     "otp_code": otp_val,
                     "pending_step": step_val,
                     "needs_human": False,
-                    "photo_context": photo_ctx
+                    "photo_context": photo_ctx,
+                    "unverified_questions_count": unverified_count
                 }
 
                 # Run LangGraph Agent
@@ -601,35 +639,52 @@ async def chat_stream_endpoint(websocket: WebSocket, session_id: str):
                 response_content = last_message.content
                 tool_payload = result.get("tool_payload")
 
-                # Update MongoDB Lead Document with conversational progress
+                # Update MongoDB Lead Document with conversational progress & progressive flags
                 try:
                     update_fields = {}
                     if result.get("user_name") and result["user_name"].strip().lower() not in GREETING_WORDS:
                         update_fields["full_name"] = result["user_name"]
+                        update_fields["has_name"] = True
                     elif result.get("user_name") == "":
                         update_fields["full_name"] = ""
-                    if "user_email" in result:
+                        update_fields["has_name"] = False
+
+                    if result.get("user_email"):
                         update_fields["email"] = result["user_email"]
-                    if "user_phone" in result:
+                        update_fields["has_email"] = True
+
+                    if result.get("user_phone"):
                         update_fields["phone"] = result["user_phone"]
-                    if result.get("is_verified") is not None:
-                        res_email = result.get("user_email") or email_val
-                        update_fields["is_verified"] = bool(result["is_verified"]) and bool(res_email)
+                        update_fields["has_phone"] = True
+
+                    verified_status = bool(result.get("is_verified")) and bool(result.get("user_email") or email_val)
+                    update_fields["is_verified"] = verified_status
+
+                    if verified_status:
+                        update_fields["stage"] = result.get("lead_stage") or "QUALIFYING"
+                        update_fields["pipelineStage"] = result.get("lead_stage") or "QUALIFYING"
+                        update_fields["unverified_questions_count"] = 0
+                    else:
+                        update_fields["stage"] = "PENDING_VERIFICATION"
+                        update_fields["pipelineStage"] = "PENDING_VERIFICATION"
+                        if "unverified_questions_count" in result:
+                            update_fields["unverified_questions_count"] = result["unverified_questions_count"]
+
                     if "otp_code" in result:
                         update_fields["otp_code"] = result["otp_code"]
                     if result.get("pending_step"):
                         update_fields["pending_step"] = result["pending_step"]
-                    if result.get("lead_stage"):
-                        update_fields["pipelineStage"] = result["lead_stage"]
-                    
+
+                    update_fields["updated_at"] = datetime.datetime.now(datetime.timezone.utc)
+
                     if update_fields:
                         await leads_collection.update_one(
                             {"session_id": session_id},
                             {"$set": update_fields},
                             upsert=True
                         )
-                except Exception:
-                    pass
+                except Exception as e:
+                    print(f"[MONGODB LEAD UPDATE NOTICE] {e}")
 
                 # Persist embedded message subdocuments into conversations collection
                 try:

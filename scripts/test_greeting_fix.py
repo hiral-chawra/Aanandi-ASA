@@ -11,7 +11,7 @@ if sys.platform.startswith("win"):
         pass
 
 # Add backend directory to sys.path
-backend_dir = r"c:\Users\A\Desktop\internship\Autonomous-Sales-Agent-GIT\backend"
+backend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "backend"))
 sys.path.insert(0, backend_dir)
 
 from dotenv import load_dotenv, find_dotenv
