@@ -46,6 +46,16 @@ async def init_db():
 # In-memory fallback for when MongoDB is offline
 _in_memory_otps: Dict[str, Any] = {}
 
+def _cleanup_in_memory_otps(now: datetime):
+    """Purges expired OTP entries and bounds dictionary to 50 items max."""
+    expired = [k for k, v in _in_memory_otps.items() if v.get("otp_expires_at") and v["otp_expires_at"] < now]
+    for k in expired:
+        _in_memory_otps.pop(k, None)
+    if len(_in_memory_otps) > 50:
+        sorted_keys = sorted(_in_memory_otps.keys(), key=lambda k: _in_memory_otps[k].get("updated_at", now), reverse=True)
+        for k in sorted_keys[50:]:
+            _in_memory_otps.pop(k, None)
+
 # ── OTP & Lead Helpers ────────────────────────────────────────────────────────
 async def store_lead_otp(email: str, otp_code: str, expiry_minutes: int = 10, session_id: Optional[str] = None) -> Dict[str, Any]:
     """
@@ -65,7 +75,9 @@ async def store_lead_otp(email: str, otp_code: str, expiry_minutes: int = 10, se
     if session_id:
         update_data["session_id"] = session_id
 
+    _cleanup_in_memory_otps(now)
     _in_memory_otps[clean_email] = update_data
+
 
     try:
         result = await leads_collection.find_one_and_update(

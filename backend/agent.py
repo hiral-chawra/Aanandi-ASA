@@ -54,8 +54,14 @@ PROJECTS_AND_CASE_STUDIES = """Aanandi TechnoSoft LLP (https://aanandi.in) is an
 5. 📱 **Production Portfolio (9 Live Commercial Platforms)**:
    - Live products backed with verified web demos and Google Play Store apps including Uclean Laundry (laundry booking & tracking), Swagmee Fashion (discovery & checkout), Jotno Patient (healthcare EHR), HungerGo Food (live map food delivery), Careasy Customer (automotive & home repair), VHelp (emergency assistance), Service Plug (enterprise service dispatch), and Grocery Delivery.
 
-6. 🛠️ **Enterprise Delivery Methodology & Security**:
+6. 🛠️ **Enterprise Delivery Methodology, Timelines & Security**:
    - Transparent 6-step delivery: Discovery → Planning → Development → Testing → Launch → Scale.
+   - High-velocity agile sprints with weekly playable builds (never multi-month black-box cycles).
+   - Official Project Delivery Timelines:
+     * Single Workflow Automations & CRM Integrations: 2 to 3 weeks (typically a few weeks).
+     * Multi-System Enterprise Projects with AI Components: 6 to 8 weeks.
+     * Architectural Assessment SLA: Ballpark estimate delivered within 4 to 6 business hours (Response SLA < 4 hours).
+     * Exact custom delivery dates and milestones are confirmed during a 30-minute discovery session with technical leads.
    - Enterprise security: ISO 27001 Certified ISMS, CMMI Level 3 maturity, least-privilege access, and GDPR, HIPAA, and SOC2 compliance with 99.9% uptime enterprise SLAs."""
 
 # Tools Definition
@@ -422,7 +428,15 @@ def generate_ai_answer_with_followups(
                 "NEVER say 'I am unable to view images' or 'I cannot view external files' when those notes are present. Answer with confidence, "
                 "outlining how Aanandi TechnoSoft will implement the features, flows, and tech stack described in those notes. "
                 "If the lead refers to an attached image or diagram but NO requirement notes are present in their profile, "
-                "politely invite them to upload or attach the file using the attachment button in the chat.\n\n"
+                "politely invite them to upload or attach the file using the attachment button in the chat.\n"
+                "7. CRITICAL AANANDI TIMELINES & DELIVERY BOUNDARIES (STRICT RULE):\n"
+                "- You are strictly forbidden from quoting generic software timelines like '3 to 6 months', '6 to 12 months', or '12+ months'.\n"
+                "- Aanandi TechnoSoft operates on high-velocity agile sprints with weekly playable builds.\n"
+                "- Official Delivery Benchmarks:\n"
+                "  * Single Workflow Automations / CRM Integrations: 2 to 3 weeks (a few weeks).\n"
+                "  * Multi-System Enterprise Projects with AI Components: 6 to 8 weeks.\n"
+                "  * Architectural Assessment SLA: Ballpark estimate delivered within 4 to 6 business hours.\n"
+                "- When asked about timelines: State the official 2–3 weeks (single) or 6–8 weeks (multi-system) benchmark, highlight the weekly playable builds, and offer to confirm exact delivery dates during a discovery call.\n\n"
                 "CRITICAL: At the very end of your response, generate exactly 2 to 3 dynamic, context-specific follow-up questions "
                 "that the lead can ask next in this chat. Format the end strictly as:\n"
                 "FOLLOW_UPS:\n"
@@ -963,5 +977,38 @@ workflow.set_entry_point("triage")
 workflow.add_edge("triage", "reasoner")
 workflow.add_edge("reasoner", END)
 
-checkpointer = MemorySaver()
+class BoundedMemorySaver(MemorySaver):
+    """
+    Production-safe in-memory checkpointer that bounds retained threads to prevent memory leaks on Render.
+    Caps in-memory state to the most recent 50 active sessions, preventing unbounded RAM accumulation.
+    """
+    def __init__(self, max_threads: int = 50):
+        super().__init__()
+        self._max_threads = max_threads
+        self._thread_order: list[str] = []
+
+    def _track_and_evict(self, thread_id: str):
+        if not thread_id:
+            return
+        if thread_id in self._thread_order:
+            self._thread_order.remove(thread_id)
+        self._thread_order.append(thread_id)
+        while len(self._thread_order) > self._max_threads:
+            oldest = self._thread_order.pop(0)
+            self.storage.pop(oldest, None)
+            if hasattr(self, "blobs") and isinstance(self.blobs, dict):
+                self.blobs = {k: v for k, v in self.blobs.items() if not (isinstance(k, tuple) and k and k[0] == oldest)}
+
+    def put(self, config, checkpoint, metadata, new_versions):
+        thread_id = config.get("configurable", {}).get("thread_id")
+        self._track_and_evict(thread_id)
+        return super().put(config, checkpoint, metadata, new_versions)
+
+    async def aput(self, config, checkpoint, metadata, new_versions):
+        thread_id = config.get("configurable", {}).get("thread_id")
+        self._track_and_evict(thread_id)
+        return await super().aput(config, checkpoint, metadata, new_versions)
+
+checkpointer = BoundedMemorySaver(max_threads=50)
 app = workflow.compile(checkpointer=checkpointer)
+

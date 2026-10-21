@@ -15,10 +15,16 @@ RUN npm run build
 # ── Stage 2: Production Python Runtime ────────────────────────────────
 FROM python:3.12-slim AS runner
 
-# Optimize Python execution and configure default Render port
+# Optimize Python execution, suppress glibc heap fragmentation, and limit multi-threading RAM overhead
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PORT=10000
+    PORT=10000 \
+    MALLOC_ARENA_MAX=2 \
+    OMP_NUM_THREADS=1 \
+    MKL_NUM_THREADS=1 \
+    OPENBLAS_NUM_THREADS=1 \
+    NUMEXPR_NUM_THREADS=1 \
+    CTRANSLATE2_MAX_COMPUTE_THREADS=1
 
 # Install required system packages for audio, voice models (Whisper/Kokoro), and healthcheck
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -51,4 +57,5 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
 
 # Start the FastAPI gateway with Uvicorn
 WORKDIR /app/backend
-CMD uvicorn main:app --host 0.0.0.0 --port ${PORT:-10000}
+CMD uvicorn main:app --host 0.0.0.0 --port ${PORT:-10000} --workers 1 --limit-concurrency 50 --timeout-keep-alive 30
+

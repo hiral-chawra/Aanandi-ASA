@@ -21,12 +21,21 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-try:
-    from bot import run_voice_agent, RawPCMFrameSerializer
-except Exception as e:
-    print(f"[VOICE BOT NOTICE] Voice bot module initialization deferred: {e}", flush=True)
-    run_voice_agent = None
-    RawPCMFrameSerializer = None
+# Lazy voice bot loader: prevents loading heavy ML audio models until voice call actually connects
+_run_voice_agent = None
+_RawPCMFrameSerializer = None
+
+def get_voice_runner():
+    global _run_voice_agent, _RawPCMFrameSerializer
+    if _run_voice_agent is None:
+        try:
+            from bot import run_voice_agent, RawPCMFrameSerializer
+            _run_voice_agent = run_voice_agent
+            _RawPCMFrameSerializer = RawPCMFrameSerializer
+        except Exception as e:
+            print(f"[VOICE BOT NOTICE] Voice bot module initialization deferred: {e}", flush=True)
+    return _run_voice_agent, _RawPCMFrameSerializer
+
 from agent import app as sales_agent, GREETING_WORDS
 from db import (
     leads_collection, conversations_collection,
@@ -39,11 +48,35 @@ from langchain_core.messages import HumanMessage
 UPLOAD_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
+def _get_process_rss_mb() -> float:
+    try:
+        import resource
+        return round(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024.0, 1)
+    except Exception:
+        try:
+            import psutil
+            return round(psutil.Process().memory_info().rss / (1024 * 1024), 1)
+        except Exception:
+            return 0.0
+
 async def run_follow_up_worker():
-    """Background sweep running every 10s to process due 90-second follow-ups."""
+    """Background sweep running every 10s to process due 90-second follow-ups and periodically release OS memory."""
+    sweep_cycle = 0
     while True:
         try:
             await asyncio.sleep(10)
+            sweep_cycle += 1
+            # Reclaim memory every 60s to prevent container bloat on Render's 512MB plan
+            if sweep_cycle % 6 == 0:
+                import gc
+                gc.collect()
+                try:
+                    import ctypes
+                    libc = ctypes.CDLL("libc.so.6")
+                    libc.malloc_trim(0)
+                except Exception:
+                    pass
+
             due_tasks = await get_due_follow_ups()
             for task in due_tasks:
                 task_id = task.get("_id")
@@ -101,12 +134,17 @@ app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 # ── Health Check Endpoint (Required for Render) ───────────────────────────
 @app.get("/health")
 async def health_check():
+    rss_mb = _get_process_rss_mb()
     return {
         "status": "ok",
         "service": "Aanandi Sales API Gateway",
-        "version": "v1.1-voice-fixed",
+        "version": "v1.2-memory-optimized",
+        "memory_rss_mb": rss_mb,
+        "memory_limit_mb": 512.0,
+        "memory_percent": round((rss_mb / 512.0) * 100, 1) if rss_mb > 0 else 0.0,
         "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat()
     }
+
 
 # ── Serve Built Frontend Landing Page & Widget Bundle ─────────────────────
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -672,6 +710,7 @@ async def voice_websocket_endpoint(websocket: WebSocket, session_id: str):
         summary_msg = "Known Lead Memory from Prior Text Interaction:\n" + "\n".join(lead_summary_parts)
         formatted_history.insert(0, {"role": "system", "content": summary_msg})
 
+    run_voice_agent, RawPCMFrameSerializer = get_voice_runner()
     if run_voice_agent is None:
         await websocket.send_text(json.dumps({
             "type": "status",
@@ -680,6 +719,7 @@ async def voice_websocket_endpoint(websocket: WebSocket, session_id: str):
         }))
         await websocket.close()
         return
+
 
     from pipecat.transports.websocket.fastapi import FastAPIWebsocketTransport, FastAPIWebsocketParams
     serializer = RawPCMFrameSerializer(sample_rate=16000, num_channels=1) if RawPCMFrameSerializer else None

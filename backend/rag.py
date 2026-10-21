@@ -84,16 +84,22 @@ FALLBACK_KNOWLEDGE = [
         )
     },
     {
-        "title": "6-Step Delivery Process & Methodology",
+        "title": "Delivery Process, Timelines & Agile Sprints",
         "category": "delivery_process",
         "content": (
-            "Aanandi TechnoSoft delivers client engagements through a transparent 6-step milestone process:\n"
-            "Step 1 - Discovery: Deep dive into business workflows, bottlenecks, and measurable KPIs.\n"
-            "Step 2 - Planning: Architectural blueprints, database schema design, and UX prototypes with clear sprint roadmaps.\n"
-            "Step 3 - Development: High-velocity agile sprints with weekly playable builds and modular code.\n"
-            "Step 4 - Testing: Comprehensive unit testing, user journey validation, vulnerability scanning, and load stress testing.\n"
-            "Step 5 - Launch: Zero-downtime cloud provisioning and deployment to Google Play Store, Apple App Store, and web.\n"
-            "Step 6 - Scale: Ongoing performance optimization, 99.9% uptime SLA monitoring, and proactive user feedback iteration."
+            "Aanandi TechnoSoft delivers client engagements through high-velocity agile sprints with weekly playable builds, "
+            "strictly avoiding multi-month black-box cycles:\n"
+            "- Single Workflow Automations & CRM Integrations: 2 to 3 weeks (typically a few weeks).\n"
+            "- Multi-System Enterprise Projects with AI Components: 6 to 8 weeks.\n"
+            "- Architectural Assessment SLA: Initial architectural review and ballpark estimate within 4 to 6 business hours (Response SLA < 4 hours).\n"
+            "- Custom Delivery Milestones: Exact dates and phases are confirmed during a 30-minute discovery session with senior technical leadership.\n"
+            "- 6-Step Milestone Methodology:\n"
+            "  * Step 1 - Discovery: Deep dive into business workflows, bottlenecks, and measurable KPIs.\n"
+            "  * Step 2 - Planning: Architectural blueprints, database schema design, and UX prototypes with clear sprint roadmaps.\n"
+            "  * Step 3 - Development: High-velocity agile sprints with weekly playable builds and modular code.\n"
+            "  * Step 4 - Testing: Comprehensive unit testing, user journey validation, vulnerability scanning, and load stress testing.\n"
+            "  * Step 5 - Launch: Zero-downtime cloud provisioning and deployment to Google Play Store, Apple App Store, and web.\n"
+            "  * Step 6 - Scale: Ongoing performance optimization, 99.9% uptime SLA monitoring, and proactive user feedback iteration."
         )
     },
     {

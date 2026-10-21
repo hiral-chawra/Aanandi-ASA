@@ -103,6 +103,9 @@ Configure these in the Render Web Service under **Environment**:
 | `DATABASE_NAME` | No | Database name in MongoDB | `aanandi_sales` |
 | `OPENROUTER_API_KEY` | Conditional | OpenRouter API Key for GPT-4o-mini reasoning | `sk-or-v1-...` |
 | `OPENAI_API_KEY` | Conditional | OpenAI API Key (used if OpenRouter not provided) | `sk-...` |
+| `ELEVENLABS_API_KEY` | No (Recommended) | Cloud TTS (uses 0MB server RAM, prevents voice OOM) | `sk_...` |
+| `MALLOC_ARENA_MAX` | No | Prevents glibc memory fragmentation (default: 2) | `2` |
+| `OMP_NUM_THREADS` | No | Prevents multi-core CPU thread over-allocation | `1` |
 | `CAL_API_KEY` | No | Cal.com API key for calendar bookings | `cal_live_...` |
 | `CAL_EVENT_TYPE_ID` | No | Cal.com Event Type ID | `7297448` |
 | `CAL_TIME_ZONE` | No | Timezone for booking schedule | `Asia/Kolkata` |
