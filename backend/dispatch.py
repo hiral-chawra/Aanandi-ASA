@@ -19,6 +19,78 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# ── Dummy / Test Domain & Address Filters ────────────────────────────────────
+# Prevents sending live emails to dummy/test mailboxes during development,
+# automated tests, or user trials, preventing Google Mail bounce-backs.
+DUMMY_DOMAINS = {
+    # RFC 2606 & RFC 6761 reserved domains
+    "example.com", "example.org", "example.net", "example.edu",
+    "test.com", "test.org", "test.net", "test.io", "test.co",
+    "testcompany.com", "testmail.com", "testing.com",
+    "patel.com", "sharma.com",
+    "dummy.com", "dummy.org", "dummy.net",
+    "fake.com", "fake.org", "fake.net",
+    "sample.com", "sample.org", "sample.net",
+    "mock.com", "mock.org", "mock.net",
+    "invalid", "localhost", "test", "example",
+    "none.com", "email.com",
+    # Temporary / Disposable mail domains
+    "mailinator.com", "tempmail.com", "10minutemail.com", "throwawaymail.com",
+    "guerrillamail.com", "yopmail.com", "trashmail.com", "sharklasers.com"
+}
+
+DUMMY_TLDS = (".test", ".example", ".invalid", ".localhost", ".local")
+
+DUMMY_USERS = {"test", "testing", "dummy", "fake", "demo", "sample", "mock", "temp"}
+
+
+def is_mock_dispatch_forced() -> bool:
+    """Returns True if mock email mode is explicitly activated via environment variables."""
+    for var in ("MOCK_EMAIL", "TEST_MODE", "MOCK_DISPATCH", "DISABLE_REAL_EMAIL"):
+        val = os.getenv(var, "").strip().lower()
+        if val in ("true", "1", "yes", "on"):
+            return True
+    return False
+
+
+def is_dummy_or_test_email(email: str) -> bool:
+    """
+    Detects whether an email address is a test, dummy, or disposable address
+    that should NEVER be dispatched to live SMTP/Gmail/Resend networks.
+    """
+    if not email or not isinstance(email, str) or "@" not in email:
+        return True
+
+    clean = email.strip().lower()
+    user_part, _, domain_part = clean.partition("@")
+
+    # Reject obvious non-domains or missing TLD dot (unless local/test)
+    if not domain_part or ("." not in domain_part and domain_part not in {"localhost", "invalid", "test", "example"}):
+        return True
+
+    # Check exact dummy domains
+    if domain_part in DUMMY_DOMAINS:
+        return True
+
+    # Check domain substring matches
+    if any(keyword in domain_part for keyword in ("testcompany", "testdomain", "fakemail", "dummydomain")):
+        return True
+
+    # Check RFC test TLDs
+    if any(domain_part.endswith(tld) for tld in DUMMY_TLDS):
+        return True
+
+    # Check test usernames
+    if user_part in DUMMY_USERS:
+        return True
+
+    # Check user prefix patterns (e.g. test_123, dummy_user)
+    if any(user_part.startswith(prefix) for prefix in ("test_", "test.", "test-", "dummy_", "dummy.", "dummy-", "mock_", "mock.", "mock-", "fake_", "fake.", "fake-")):
+        return True
+
+    return False
+
+
 
 def _get_gmail_access_token() -> str | None:
     """Refreshes the OAuth2 access token for the Gmail REST API."""
@@ -83,6 +155,7 @@ def _send_via_gmail_api(to_email: str, subject: str, text_content: str, html_con
 def _send_email_dispatch_sync(to_email: str, subject: str, text_content: str, html_content: str = None) -> dict:
     """
     Synchronous network worker:
+    0. Intercepts dummy/test emails and mock mode (console-only simulation).
     1. Tries Gmail REST API over HTTPS (Port 443 - Bypasses Render SMTP port blocking).
     2. Falls back to raw SMTP (local dev on port 587).
     3. Falls back to Secondary SMTP.
@@ -90,6 +163,21 @@ def _send_email_dispatch_sync(to_email: str, subject: str, text_content: str, ht
     5. Falls back to console simulation.
     """
     load_dotenv(override=True)
+
+    # 0. Intercept dummy/test emails or forced mock mode immediately
+    if is_mock_dispatch_forced() or is_dummy_or_test_email(to_email):
+        print("\n" + "=" * 60, flush=True)
+        print(f"[DUMMY/TEST EMAIL SUPPRESSED] TO: {to_email}", flush=True)
+        print(f"SUBJECT: {subject}", flush=True)
+        print(f"REASON: Dummy/test email domain or mock mode enabled. Real SMTP transmission blocked.", flush=True)
+        print(f"CONTENT:\n{text_content}", flush=True)
+        print("=" * 60 + "\n", flush=True)
+        return {
+            "success": True,
+            "provider": "mock_filter",
+            "mock": True,
+            "message": f"Real email suppressed for test/dummy address: {to_email}"
+        }
 
     # 1. Primary: Gmail REST API over HTTPS Port 443
     client_id = os.getenv("GMAIL_CLIENT_ID")
@@ -197,6 +285,22 @@ def send_email_dispatch(to_email: str, subject: str, text_content: str, html_con
     so the API/WebSocket loop finishes instantly without blocking the UI.
     """
     load_dotenv(override=True)
+
+    # 0. Intercept dummy/test emails or forced mock mode immediately without spawning threads
+    if is_mock_dispatch_forced() or is_dummy_or_test_email(to_email):
+        print("\n" + "=" * 60, flush=True)
+        print(f"[DUMMY/TEST EMAIL SUPPRESSED] TO: {to_email}", flush=True)
+        print(f"SUBJECT: {subject}", flush=True)
+        print(f"REASON: Dummy/test email domain or mock mode enabled. Real SMTP transmission blocked.", flush=True)
+        print(f"CONTENT:\n{text_content}", flush=True)
+        print("=" * 60 + "\n", flush=True)
+        return {
+            "success": True,
+            "mock": True,
+            "provider": "mock_filter",
+            "message": f"Real email suppressed for test/dummy address: {to_email}"
+        }
+
     client_id = os.getenv("GMAIL_CLIENT_ID")
     client_secret = os.getenv("GMAIL_CLIENT_SECRET")
     refresh_token = os.getenv("GMAIL_REFRESH_TOKEN")

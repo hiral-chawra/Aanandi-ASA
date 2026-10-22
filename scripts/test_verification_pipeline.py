@@ -16,6 +16,9 @@ sys.path.insert(0, backend_dir)
 
 from dotenv import load_dotenv, find_dotenv
 load_dotenv(find_dotenv(usecwd=True))
+# Force mock email mode during automated test suites
+os.environ["MOCK_EMAIL"] = "true"
+
 
 from langchain_core.messages import HumanMessage
 from agent import app as sales_agent, parse_lead_info
