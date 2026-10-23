@@ -256,12 +256,23 @@ def parse_lead_info(text: str) -> dict:
     if email_match:
         info["email"] = email_match.group(0).lower()
 
-    # 2. Extract Phone (10 to 12 digits, optional leading +, with or without formatting)
-    phone_match = re.search(r'(?:(?:\+91|91|0)?[ -]?)?([6-9]\d{9})\b|\b(\d{10,12})\b', clean_text)
-    if phone_match:
-        digits = "".join(filter(str.isdigit, phone_match.group(0)))
-        if len(digits) in [10, 11, 12]:
-            info["phone"] = digits
+    # 2. Extract Phone (supports international prefix, spaces, dashes, parentheses e.g. +91 83051 11721)
+    phone_candidate = re.search(r'(?:\+?\d{1,3}[-.\s]?)?\(?\d{2,5}\)?[-.\s]?\d{3,5}[-.\s]?\d{3,5}\b|\b\d{10,12}\b', clean_text)
+    if phone_candidate:
+        digits = "".join(filter(str.isdigit, phone_candidate.group(0)))
+        if len(digits) >= 10:
+            if len(digits) == 12 and digits.startswith("91"):
+                digits = digits[2:]
+            elif len(digits) == 11 and digits.startswith("0"):
+                digits = digits[1:]
+            if len(digits) == 10:
+                info["phone"] = digits
+    if "phone" not in info:
+        raw_digits = "".join(filter(str.isdigit, clean_text))
+        if len(raw_digits) == 10 and raw_digits[0] in "6789":
+            info["phone"] = raw_digits
+        elif len(raw_digits) == 12 and raw_digits.startswith("91"):
+            info["phone"] = raw_digits[2:]
 
     # 3. Extract Name
     name_label_match = re.search(r'(?:name|full name)\s*[:=-]\s*([^,\n\r|]+)', clean_text, re.IGNORECASE)
@@ -280,8 +291,11 @@ def parse_lead_info(text: str) -> dict:
         text_without_contact = clean_text
         if "email" in info and email_match:
             text_without_contact = text_without_contact.replace(email_match.group(0), "")
-        if "phone" in info and phone_match:
-            text_without_contact = text_without_contact.replace(phone_match.group(0), "")
+        if "phone" in info:
+            if phone_candidate:
+                text_without_contact = text_without_contact.replace(phone_candidate.group(0), "")
+            else:
+                text_without_contact = text_without_contact.replace(info["phone"], "")
         # Remove common filler words, greetings, and symbols
         text_without_contact = re.sub(
             r'\b(hey|hello|hi|hay|heyy|heyyy|hii|hiii|heya|hola|howdy|yo|sup|namaste|and|my|details|is|phone|email)\b',
