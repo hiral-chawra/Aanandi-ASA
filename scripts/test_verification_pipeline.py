@@ -147,6 +147,38 @@ async def run_verification_tests():
     print("  [PASS] Invalid OTP correctly rejected with retry prompt.")
 
     # -------------------------------------------------------------
+    # TEST 3B: User requests resend using natural phrasing ("hay the otp didnt came")
+    # Expected: Resends OTP, updates code, keeps pending_step="VERIFY_OTP"
+    # -------------------------------------------------------------
+    print("\n[TEST 3B] Submitting 'hay the otp didnt came' escape hatch...")
+    state_3b = {
+        "messages": [HumanMessage(content="hay the otp didnt came")],
+        "lead_stage": res_3.get("lead_stage"),
+        "bant_score": 3,
+        "user_email": res_3.get("user_email"),
+        "user_name": res_3.get("user_name"),
+        "user_phone": res_3.get("user_phone"),
+        "is_verified": False,
+        "otp_code": generated_otp,
+        "pending_step": "VERIFY_OTP",
+        "needs_human": False,
+        "photo_context": ""
+    }
+
+    res_3b = await sales_agent.ainvoke(state_3b, config=config_1)
+    payload_3b = res_3b.get("tool_payload") or {}
+    print(f"  AI Response: {res_3b['messages'][-1].content}")
+    print(f"  Pending Step: {res_3b.get('pending_step')}")
+    print(f"  New OTP Code: {res_3b.get('otp_code')}")
+
+    assert res_3b.get("pending_step") == "VERIFY_OTP"
+    assert res_3b.get("is_verified") is False
+    assert len(res_3b.get("otp_code", "")) == 6
+    assert res_3b.get("otp_code") != generated_otp
+    generated_otp = res_3b.get("otp_code")
+    print("  [PASS] 'hay the otp didnt came' correctly triggered new OTP generation and dispatch.")
+
+    # -------------------------------------------------------------
     # TEST 4: Entering Correct OTP in Booking Flow
     # Expected: Verifies session, returns call_routing card!
     # -------------------------------------------------------------

@@ -577,14 +577,27 @@ def reasoning_node(state: AgentState):
     cleaned_digits = "".join(filter(str.isdigit, last_msg))
 
     # Check for escape hatch requests (Resend OTP or Change Email)
-    if any(k in last_msg.lower() for k in ["resend", "resend_otp", "resend code", "didn't receive", "didnt receive"]):
+    resend_patterns = [
+        "resend", "send again", "send another", "try again", "send new",
+        "didn't receive", "didnt receive", "haven't received", "havent received",
+        "not received", "didn't get", "didnt get", "haven't got", "havent got",
+        "didn't come", "didnt come", "didn't came", "didnt came", "did not come",
+        "not arrived", "didn't arrive", "didnt arrive", "never arrived", "never came",
+        "no otp", "no code", "otp not coming", "otp missing", "where is the otp",
+        "where is the code", "haven't got the code", "didn't get the code"
+    ]
+    is_resend_requested = any(p in last_msg.lower() for p in resend_patterns) or (
+        pending_step == "VERIFY_OTP" and "otp" in last_msg.lower() and any(w in last_msg.lower() for w in ["came", "come", "get", "got", "receive", "arrived", "reach", "wait"])
+    )
+
+    if is_resend_requested:
         target_mail = user_email.strip() if (user_email and "@" in user_email) else os.getenv("SMTP_EMAIL", "pyashkumar0312@gmail.com")
         new_otp = str(random.randint(100000, 999999))
         print(f"\n==================================================", flush=True)
         print(f"[SECURITY OTP RESENT] FOR {target_mail}: {new_otp}", flush=True)
         print(f"==================================================\n", flush=True)
         from dispatch import send_email_dispatch
-        send_email_dispatch(
+        dispatch_res = send_email_dispatch(
             to_email=target_mail,
             subject="Your Aanandi Security Verification Code (Resent)",
             text_content=f"Hello {user_name or 'Valued Customer'},\n\nYour new 6-digit security code is: {new_otp}\nValid for 10 minutes."
@@ -601,8 +614,22 @@ def reasoning_node(state: AgentState):
             }
         except Exception:
             pass
+
+        is_mock = dispatch_res.get("mock", False) if isinstance(dispatch_res, dict) else False
+        if is_mock:
+            msg_content = (
+                f"🔄 **New verification code dispatched to {target_mail}!**\n\n"
+                f"*(Demo / Test Mode: Your new security code is `{new_otp}`)*\n\n"
+                f"Please enter the 6-digit code below to verify your session."
+            )
+        else:
+            msg_content = (
+                f"🔄 **New verification code sent!**\n\n"
+                f"Please check your inbox & spam folder (**{target_mail}**) and enter the 6-digit code below."
+            )
+
         return {
-            "messages": [AIMessage(content=f"🔄 **New verification code sent!**\n\nPlease check your inbox & spam folder (**{target_mail}**) and enter the 6-digit code below.")],
+            "messages": [AIMessage(content=msg_content)],
             "user_name": user_name,
             "user_email": target_mail,
             "user_phone": user_phone,
@@ -618,7 +645,11 @@ def reasoning_node(state: AgentState):
             }
         }
 
-    if any(k in last_msg.lower() for k in ["change email", "change_email", "wrong email", "different email"]):
+    change_email_patterns = [
+        "change email", "change_email", "wrong email", "different email",
+        "update email", "new email", "another email", "wrong mail", "change mail"
+    ]
+    if any(k in last_msg.lower() for k in change_email_patterns):
         return {
             "messages": [AIMessage(content="Sure! Please fill in your updated email address below to receive a new code:")],
             "user_name": user_name,
@@ -639,12 +670,48 @@ def reasoning_node(state: AgentState):
     # Handle 10-digit phone number sent while waiting for OTP
     if pending_step == "VERIFY_OTP" and len(cleaned_digits) in [10, 11, 12] and not is_user_query(last_msg):
         target_mail = user_email.strip() if (user_email and "@" in user_email) else os.getenv("SMTP_EMAIL", "pyashkumar0312@gmail.com")
+        new_otp = str(random.randint(100000, 999999))
+        print(f"\n==================================================", flush=True)
+        print(f"[SECURITY OTP (PHONE INTAKE)] DISPATCHED FOR {target_mail}: {new_otp}", flush=True)
+        print(f"==================================================\n", flush=True)
+        from dispatch import send_email_dispatch
+        dispatch_res = send_email_dispatch(
+            to_email=target_mail,
+            subject="Your Aanandi Security Verification Code",
+            text_content=f"Hello {user_name or 'Valued Customer'},\n\nYour 6-digit security code is: {new_otp}\nValid for 10 minutes."
+        )
+        try:
+            from db import _in_memory_otps
+            from datetime import datetime, timezone, timedelta
+            _in_memory_otps[target_mail.lower()] = {
+                "email": target_mail.lower(),
+                "otp_code": str(new_otp),
+                "otp_expires_at": datetime.now(timezone.utc) + timedelta(minutes=10),
+                "is_verified": False,
+                "updated_at": datetime.now(timezone.utc)
+            }
+        except Exception:
+            pass
+
+        is_mock = dispatch_res.get("mock", False) if isinstance(dispatch_res, dict) else False
+        if is_mock:
+            msg_content = (
+                f"🔐 **We've dispatched your 6-digit verification code to {target_mail}!**\n\n"
+                f"*(Demo Mode: Your security code is `{new_otp}`)*\n\n"
+                f"Please enter the 6-digit code below to complete session verification."
+            )
+        else:
+            msg_content = (
+                f"🔐 **We've dispatched your 6-digit verification code to {target_mail}!**\n\n"
+                f"Please check your inbox (and spam folder) and enter the 6-digit code below to complete session verification."
+            )
+
         return {
-            "messages": [AIMessage(content=f"🔐 **We've dispatched your 6-digit verification code to {target_mail}!**\n\nPlease check your inbox and enter the 6-digit code below to complete session verification.")],
+            "messages": [AIMessage(content=msg_content)],
             "user_name": user_name,
             "user_phone": last_msg.strip(),
             "user_email": target_mail,
-            "otp_code": otp_code,
+            "otp_code": new_otp,
             "lead_stage": lead_stage,
             "pending_step": "VERIFY_OTP",
             "is_verified": False,
