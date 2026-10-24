@@ -410,8 +410,12 @@ async def intercept_lead(lead: LeadInterceptPayload):
     return {"status": "success", "lead_id": lead_id}
 
 async def analyze_project_photo_content(file_bytes: bytes, filename: str) -> str:
-    """Uses vision LLM (OpenRouter / OpenAI) to inspect uploaded diagram, wireframe, or photo."""
+    """Uses vision LLM (OpenRouter / OpenAI / Gemini) to inspect uploaded diagram, wireframe, or photo."""
     openrouter_key = os.getenv("OPENROUTER_API_KEY")
+    openai_key = os.getenv("OPENAI_API_KEY")
+    gemini_key = os.getenv("GEMINI_API_KEY")
+
+    # 1. Try OpenRouter Vision (openai/gpt-4o-mini)
     if openrouter_key:
         try:
             import base64
@@ -460,9 +464,105 @@ async def analyze_project_photo_content(file_bytes: bytes, filename: str) -> str
                     if analysis:
                         return analysis
         except Exception as e:
-            print(f"[PHOTO AI ANALYSIS NOTICE] Vision API fallback: {e}")
+            print(f"[PHOTO AI ANALYSIS NOTICE] OpenRouter Vision fallback: {e}")
 
-    # Fallback summary
+    # 2. Try Direct OpenAI Vision (gpt-4o-mini)
+    if openai_key and (openai_key.startswith("sk-") or len(openai_key) > 10):
+        try:
+            import base64
+            import httpx
+            b64_img = base64.b64encode(file_bytes).decode("utf-8")
+            ext = os.path.splitext(filename)[1].lower().replace(".", "")
+            mime = f"image/{'jpeg' if ext in ['jpg', 'jpeg'] else 'png' if ext == 'png' else 'webp' if ext == 'webp' else 'png'}"
+            
+            headers = {
+                "Authorization": f"Bearer {openai_key}",
+                "Content-Type": "application/json"
+            }
+            body = {
+                "model": "gpt-4o-mini",
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": (
+                                    "You are an AI Sales Engineer at Aanandi TechnoSoft (https://aanandi.in). "
+                                    "Analyze this uploaded client project requirement image/wireframe/diagram. "
+                                    "Provide a concise 2-3 sentence technical summary: "
+                                    "1) What the user is trying to build or demonstrate, "
+                                    "2) Key UI/architectural elements visible, and "
+                                    "3) Recommended Aanandi technical services (e.g., custom AI agent, CRM sync, voice widget, workflow automation)."
+                                )
+                            },
+                            {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": f"data:{mime};base64,{b64_img}"
+                                }
+                            }
+                        ]
+                    }
+                ],
+                "max_tokens": 250
+            }
+            async with httpx.AsyncClient(timeout=12.0) as client:
+                res = await client.post("https://api.openai.com/v1/chat/completions", headers=headers, json=body)
+                if res.status_code == 200:
+                    data = res.json()
+                    analysis = data.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
+                    if analysis:
+                        return analysis
+        except Exception as e:
+            print(f"[PHOTO AI ANALYSIS NOTICE] OpenAI Vision fallback: {e}")
+
+    # 3. Try Gemini 1.5 Flash Vision (Google AI Studio)
+    if gemini_key:
+        try:
+            import base64
+            import httpx
+            b64_img = base64.b64encode(file_bytes).decode("utf-8")
+            ext = os.path.splitext(filename)[1].lower().replace(".", "")
+            mime = f"image/{'jpeg' if ext in ['jpg', 'jpeg'] else 'png' if ext == 'png' else 'webp' if ext == 'webp' else 'png'}"
+            
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={gemini_key}"
+            prompt = (
+                "You are an AI Sales Engineer at Aanandi TechnoSoft (https://aanandi.in). "
+                "Analyze this uploaded client project requirement image/wireframe/diagram. "
+                "Provide a concise 2-3 sentence technical summary: "
+                "1) What the user is trying to build or demonstrate, "
+                "2) Key UI/architectural elements visible, and "
+                "3) Recommended Aanandi technical services (e.g., custom AI agent, CRM sync, voice widget, workflow automation)."
+            )
+            body = {
+                "contents": [
+                    {
+                        "parts": [
+                            {"text": prompt},
+                            {
+                                "inline_data": {
+                                    "mime_type": mime,
+                                    "data": b64_img
+                                }
+                            }
+                        ]
+                    }
+                ]
+            }
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                res = await client.post(url, json=body)
+                if res.status_code == 200:
+                    data = res.json()
+                    candidates = data.get("candidates", [])
+                    if candidates:
+                        text = candidates[0].get("content", {}).get("parts", [{}])[0].get("text", "").strip()
+                        if text:
+                            return text
+        except Exception as e:
+            print(f"[PHOTO AI ANALYSIS NOTICE] Gemini Vision fallback: {e}")
+
+    # 4. Fallback summary if no vision provider succeeds
     return (
         f"Uploaded requirement attachment '{filename}'. "
         "Contains client project architectural/functional requirements. "
