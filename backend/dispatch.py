@@ -152,6 +152,41 @@ def _send_via_gmail_api(to_email: str, subject: str, text_content: str, html_con
     return False
 
 
+def _send_via_brevo_api(to_email: str, subject: str, text_content: str, html_content: str = None) -> bool:
+    """Dispatches email via Brevo (Sendinblue) REST API over HTTPS port 443 (Permanent, never expires)."""
+    api_key = os.getenv("BREVO_API_KEY")
+    if not api_key:
+        return False
+
+    sender_email = os.getenv("BREVO_SENDER_EMAIL") or os.getenv("GMAIL_SENDER") or os.getenv("SMTP_EMAIL", "chawrahiral3@gmail.com")
+    sender_name = os.getenv("BREVO_SENDER_NAME", "Aanandi TechnoSoft")
+
+    url = "https://api.brevo.com/v3/smtp/email"
+    headers = {
+        "accept": "application/json",
+        "api-key": api_key.strip(),
+        "content-type": "application/json",
+    }
+    payload = {
+        "sender": {"name": sender_name, "email": sender_email.strip()},
+        "to": [{"email": to_email.strip()}],
+        "subject": subject,
+        "textContent": text_content,
+    }
+    if html_content:
+        payload["htmlContent"] = html_content
+
+    try:
+        resp = requests.post(url, json=payload, headers=headers, timeout=12)
+        if resp.status_code in (200, 201):
+            print(f"[BREVO EMAIL SENT] Real email sent via Brevo API to: {to_email}", flush=True)
+            return True
+        print(f"[BREVO API ERROR] Status {resp.status_code}: {resp.text}", flush=True)
+    except Exception as e:
+        print(f"[BREVO API EXCEPTION] Failed to send via Brevo: {e}", flush=True)
+    return False
+
+
 def _send_email_dispatch_sync(to_email: str, subject: str, text_content: str, html_content: str = None) -> dict:
     """
     Synchronous network worker:
@@ -179,7 +214,13 @@ def _send_email_dispatch_sync(to_email: str, subject: str, text_content: str, ht
             "message": f"Real email suppressed for test/dummy address: {to_email}"
         }
 
-    # 1. Primary: Gmail REST API over HTTPS Port 443
+    # 1. Primary: Brevo (Sendinblue) REST API over HTTPS Port 443 (Recommended - permanent key, never expires)
+    if os.getenv("BREVO_API_KEY"):
+        if _send_via_brevo_api(to_email, subject, text_content, html_content):
+            return {"success": True, "provider": "brevo", "mock": False}
+        print("[BREVO API FALLBACK] Brevo API failed, trying fallback providers...", flush=True)
+
+    # 2. Secondary: Gmail REST API over HTTPS Port 443
     client_id = os.getenv("GMAIL_CLIENT_ID")
     client_secret = os.getenv("GMAIL_CLIENT_SECRET")
     refresh_token = os.getenv("GMAIL_REFRESH_TOKEN")
